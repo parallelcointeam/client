@@ -518,6 +518,34 @@ const rootReducer = (
       // so we can keep messages if they haven't mutated
       const previousMessageMap = state.messageMap
 
+      // Types we can send and have to deal with outbox ids
+      const canSendType = (m: Types.Message): ?Types.MessageText | ?Types.MessageAttachment =>
+        m.type === 'text' || m.type === 'attachment' ? m : null
+
+      const findExistingSentOrPending = (
+        conversationIDKey: Types.ConversationIDKey,
+        m: Types.MessageText | Types.MessageAttachment
+      ) => {
+        // something we sent
+        if (m.outboxID) {
+          // and we know about it
+          const ordinal = oldPendingOutboxToOrdinal.getIn([conversationIDKey, m.outboxID])
+          if (ordinal) {
+            return oldMessageMap.getIn([conversationIDKey, ordinal])
+          }
+        }
+        const pendingOrdinal = messageIDToOrdinal(
+          oldMessageMap,
+          oldPendingOutboxToOrdinal,
+          conversationIDKey,
+          m.id
+        )
+        if (pendingOrdinal) {
+          return oldMessageMap.getIn([conversationIDKey, pendingOrdinal])
+        }
+        return null
+      }
+
       // first group into convoid
       const convoToMessages: {[cid: string]: Array<Types.Message>} = messages.reduce((map, m) => {
         const key = String(m.conversationIDKey)
@@ -544,9 +572,22 @@ const rootReducer = (
         })
       }
 
-      // Types we can send and have to deal with outbox ids
-      const canSendType = (m: Types.Message): ?Types.MessageText | ?Types.MessageAttachment =>
-        m.type === 'text' || m.type === 'attachment' ? m : null
+      // if we already have a message, and the services gives it to us again, use the ordinal that we
+      // have already assigned to it
+      Object.keys(convoToMessages).forEach(cid => {
+        const inMessages = convoToMessages[cid]
+        convoToMessages[cid] = inMessages.reduce((list, orig) => {
+          const msg = canSendType(orig)
+          if (!msg || !msg.outboxID) {
+            return list.concat(orig)
+          }
+          const existing = oldPendingOutboxToOrdinal.getIn([msg.conversationIDKey, msg.outboxID])
+          if (!existing) {
+            return list.concat(msg)
+          }
+          return list.concat(msg.set('ordinal', existing))
+        }, [])
+      })
 
       // Update any pending messages
       const pendingOutboxToOrdinal = oldPendingOutboxToOrdinal.withMutations(
@@ -561,30 +602,6 @@ const rootReducer = (
           }
         }
       )
-
-      const findExistingSentOrPending = (
-        conversationIDKey: Types.ConversationIDKey,
-        m: Types.MessageText | Types.MessageAttachment
-      ) => {
-        // something we sent
-        if (m.outboxID) {
-          // and we know about it
-          const ordinal = oldPendingOutboxToOrdinal.getIn([conversationIDKey, m.outboxID])
-          if (ordinal) {
-            return oldMessageMap.getIn([conversationIDKey, ordinal])
-          }
-        }
-        const pendingOrdinal = messageIDToOrdinal(
-          oldMessageMap,
-          oldPendingOutboxToOrdinal,
-          conversationIDKey,
-          m.id
-        )
-        if (pendingOrdinal) {
-          return oldMessageMap.getIn([conversationIDKey, pendingOrdinal])
-        }
-        return null
-      }
 
       let messageOrdinals = oldMessageOrdinals.withMutations(
         (map: I.Map<Types.ConversationIDKey, I.OrderedSet<Types.Ordinal>>) => {
