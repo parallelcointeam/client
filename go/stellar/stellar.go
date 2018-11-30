@@ -133,7 +133,7 @@ func CreateWalletSoft(ctx context.Context, g *libkb.GlobalContext) {
 // Upkeep makes sure the bundle is encrypted for the user's latest PUK.
 func Upkeep(ctx context.Context, g *libkb.GlobalContext) (err error) {
 	defer g.CTraceTimed(ctx, "Stellar.Upkeep", func() error { return err })()
-	prevBundle, version, prevPukGen, err := remote.FetchWholeBundle(ctx, g)
+	prevBundle, _, prevPukGen, err := remote.FetchWholeBundle(ctx, g)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func Upkeep(ctx context.Context, g *libkb.GlobalContext) (err error) {
 		return nil
 	}
 	nextBundle := acctbundle.AdvanceAll(*prevBundle)
-	return remote.Post(ctx, g, nextBundle, version)
+	return remote.Post(ctx, g, nextBundle)
 }
 
 func ImportSecretKey(ctx context.Context, g *libkb.GlobalContext, secretKey stellar1.SecretKey, makePrimary bool, accountName string) (err error) {
@@ -177,7 +177,7 @@ func ImportSecretKey(ctx context.Context, g *libkb.GlobalContext, secretKey stel
 		// (so other users can find user's primary account id)
 		err = remote.PostWithChainlink(ctx, g, nextBundle)
 	} else {
-		err = remote.Post(ctx, g, nextBundle, version)
+		err = remote.Post(ctx, g, nextBundle)
 	}
 	if err != nil {
 		return err
@@ -1268,7 +1268,7 @@ func ChangeAccountName(m libkb.MetaContext, accountID stellar1.AccountID, newNam
 		return fmt.Errorf("account not found: %v", accountID)
 	}
 	nextBundle := acctbundle.AdvanceBundle(*bundle)
-	return remote.Post(m.Ctx(), m.G(), nextBundle, version)
+	return remote.Post(m.Ctx(), m.G(), nextBundle)
 }
 
 func SetAccountAsPrimary(m libkb.MetaContext, accountID stellar1.AccountID) (err error) {
@@ -1308,7 +1308,7 @@ func DeleteAccount(m libkb.MetaContext, accountID stellar1.AccountID) error {
 	if accountID.IsNil() {
 		return errors.New("passed empty AccountID")
 	}
-	prevBundle, version, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
+	prevBundle, _, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
 	if err != nil {
 		return err
 	}
@@ -1330,7 +1330,7 @@ func DeleteAccount(m libkb.MetaContext, accountID stellar1.AccountID) error {
 	if !found {
 		return fmt.Errorf("account not found: %v", accountID)
 	}
-	return remote.Post(m.Ctx(), m.G(), nextBundle, version)
+	return remote.Post(m.Ctx(), m.G(), nextBundle)
 }
 
 const DefaultCurrencySetting = "USD"
@@ -1391,7 +1391,7 @@ func CreateNewAccount(m libkb.MetaContext, accountName string) (ret stellar1.Acc
 	if err != nil {
 		return ret, err
 	}
-	return ret, remote.Post(m.Ctx(), m.G(), nextBundle, version)
+	return ret, remote.Post(m.Ctx(), m.G(), nextBundle)
 }
 
 func chatSendPaymentMessage(m libkb.MetaContext, recipient stellarcommon.Recipient, txID stellar1.TransactionID) error {

@@ -1097,12 +1097,12 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 	require.Equal(t, "vault", rev3AcctBundle.Accounts[1].Name)
 
 	// try posting an old bundle we got previously
-	err = remote.Post(ctx, g, *rev2AcctBundle, version)
+	err = remote.Post(ctx, g, *rev2AcctBundle)
 	require.Error(t, err)
 
 	// tinker with it
 	rev2AcctBundle.Revision = 4
-	err = remote.Post(ctx, g, *rev2AcctBundle, version)
+	err = remote.Post(ctx, g, *rev2AcctBundle)
 	require.Error(t, err)
 }
 

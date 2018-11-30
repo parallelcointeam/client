@@ -147,48 +147,37 @@ func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle 
 	return nil
 }
 
-func PostV1Bundle(ctx context.Context, g *libkb.GlobalContext, v1Bundle stellar1.Bundle) (err error) {
+// Post a bundle to the server.
+func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted) (err error) {
+	defer g.CTraceTimed(ctx, "Stellar.Post", func() error { return err })()
+
+	err = clearBundle.CheckInvariants()
+	if err != nil {
+		return err
+	}
 	pukGen, pukSeed, err := getLatestPuk(ctx, g)
 	if err != nil {
 		return err
 	}
-	err = v1Bundle.CheckInvariants()
+	boxed, err := acctbundle.BoxAndEncode(&clearBundle, pukGen, pukSeed)
 	if err != nil {
 		return err
 	}
-	g.Log.CDebugf(ctx, "Stellar.Post: revision:%v", v1Bundle.Revision)
-	boxed, err := bundle.Box(v1Bundle, pukGen, pukSeed)
-	if err != nil {
-		return err
-	}
+
 	payload := make(libkb.JSONPayload)
 	section := make(libkb.JSONPayload)
-	section["encrypted"] = boxed.EncB64
-	section["visible"] = boxed.VisB64
-	section["version"] = int(boxed.FormatVersion)
-	section["miniversion"] = 2
+	section["encrypted_parent"] = boxed.EncParentB64
+	section["visible_parent"] = boxed.VisParentB64
+	section["version_parent"] = boxed.FormatVersionParent
+	section["account_bundles"] = boxed.AcctBundles
 	payload["stellar"] = section
-
-	g.Log.CDebugf(ctx, "Stellar.Post: post")
 	_, err = g.API.PostJSON(libkb.APIArg{
-		Endpoint:    "stellar/bundle",
+		Endpoint:    "stellar/acctbundle",
 		SessionType: libkb.APISessionTypeREQUIRED,
 		JSONPayload: payload,
 	})
 	return err
-}
 
-// Post a bundle to the server.
-func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted, version stellar1.BundleVersion) (err error) {
-	defer g.CTraceTimed(ctx, "Stellar.Post", func() error { return err })()
-	if version == stellar1.BundleVersion_V1 {
-		v1Bundle, err := acctbundle.BundleFromBundleRestricted(clearBundle)
-		if err != nil {
-			return err
-		}
-		return PostV1Bundle(ctx, g, *v1Bundle)
-	}
-	return postV2Bundle(ctx, g, &clearBundle)
 }
 
 type AlreadyMigratedError struct{}
@@ -376,7 +365,7 @@ func MigrateBundleToAccountBundles(m libkb.MetaContext) (err error) {
 	}
 	m.CInfof("Passed all premigration checks. Posting the migrated bundle...")
 
-	err = postV2Bundle(m.Ctx(), m.G(), &v2Bundle)
+	err = Post(m.Ctx(), m.G(), v2Bundle)
 	if err != nil {
 		m.CErrorf("MIGRATION FAILED: posting v2 bundle %v\n", err)
 		return err
@@ -391,35 +380,6 @@ func MigrateBundleToAccountBundles(m libkb.MetaContext) (err error) {
 	m.CInfof("Passed all post-migration checks")
 
 	return nil
-}
-
-// postV2Bundle encrypts and uploads a restricted bundle to the server.
-func postV2Bundle(ctx context.Context, g *libkb.GlobalContext, bundle *stellar1.BundleRestricted) (err error) {
-	defer g.CTraceTimed(ctx, "Stellar.postV2Bundle", func() error { return err })()
-
-	pukGen, pukSeed, err := getLatestPuk(ctx, g)
-	if err != nil {
-		return err
-	}
-
-	boxed, err := acctbundle.BoxAndEncode(bundle, pukGen, pukSeed)
-	if err != nil {
-		return err
-	}
-
-	payload := make(libkb.JSONPayload)
-	section := make(libkb.JSONPayload)
-	section["encrypted_parent"] = boxed.EncParentB64
-	section["visible_parent"] = boxed.VisParentB64
-	section["version_parent"] = boxed.FormatVersionParent
-	section["account_bundles"] = boxed.AcctBundles
-	payload["stellar"] = section
-	_, err = g.API.PostJSON(libkb.APIArg{
-		Endpoint:    "stellar/acctbundle",
-		SessionType: libkb.APISessionTypeREQUIRED,
-		JSONPayload: payload,
-	})
-	return err
 }
 
 func FetchV2BundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountID *stellar1.AccountID) (acctBundle *stellar1.BundleRestricted, version stellar1.BundleVersion, pukGen keybase1.PerUserKeyGeneration, err error) {
@@ -1070,8 +1030,8 @@ func SetAccountMobileOnly(ctx context.Context, g *libkb.GlobalContext, accountID
 		return err
 	}
 	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
-	if err := postV2Bundle(ctx, g, &nextBundle); err != nil {
-		g.Log.CDebugf(ctx, "SetAccountMobileOnly postV2Bundle error: %s", err)
+	if err := Post(ctx, g, nextBundle); err != nil {
+		g.Log.CDebugf(ctx, "SetAccountMobileOnly Post error: %s", err)
 		return err
 	}
 
@@ -1098,8 +1058,8 @@ func MakeAccountAllDevices(ctx context.Context, g *libkb.GlobalContext, accountI
 		return err
 	}
 	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
-	if err := postV2Bundle(ctx, g, &nextBundle); err != nil {
-		g.Log.CDebugf(ctx, "MakeAccountAllDevices postV2Bundle error: %s", err)
+	if err := Post(ctx, g, nextBundle); err != nil {
+		g.Log.CDebugf(ctx, "MakeAccountAllDevices Post error: %s", err)
 		return err
 	}
 
