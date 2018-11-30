@@ -170,26 +170,6 @@ protocol bundle {
   // Unversioned structs for local use only.
   // ==========================================================================
 
-  record Bundle {
-    BundleRevision revision;
-    Hash prev;
-    // SHA256 of this msgpack(EncryptedBundle)
-    // Not serialized. Only set if this bundle was decrypted.
-    Hash ownHash;
-    // AccountID and name should be unique.
-    // At most one account should be primary.
-    array<BundleEntry> accounts;
-  }
-
-  // Combined account entry for local use only.
-  record BundleEntry {
-    AccountID accountID;
-    AccountMode mode;
-    boolean isPrimary; // whether this is the primary account
-    array<SecretKey> signers;
-    string name;
-  }
-
   // BundleRestricted does not necessarily contain account secrets
   // for all accounts.
   record BundleRestricted {

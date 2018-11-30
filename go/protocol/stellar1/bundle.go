@@ -1014,60 +1014,6 @@ func (o AccountBundleSecretUnsupported) DeepCopy() AccountBundleSecretUnsupporte
 	return AccountBundleSecretUnsupported{}
 }
 
-type Bundle struct {
-	Revision BundleRevision `codec:"revision" json:"revision"`
-	Prev     Hash           `codec:"prev" json:"prev"`
-	OwnHash  Hash           `codec:"ownHash" json:"ownHash"`
-	Accounts []BundleEntry  `codec:"accounts" json:"accounts"`
-}
-
-func (o Bundle) DeepCopy() Bundle {
-	return Bundle{
-		Revision: o.Revision.DeepCopy(),
-		Prev:     o.Prev.DeepCopy(),
-		OwnHash:  o.OwnHash.DeepCopy(),
-		Accounts: (func(x []BundleEntry) []BundleEntry {
-			if x == nil {
-				return nil
-			}
-			ret := make([]BundleEntry, len(x))
-			for i, v := range x {
-				vCopy := v.DeepCopy()
-				ret[i] = vCopy
-			}
-			return ret
-		})(o.Accounts),
-	}
-}
-
-type BundleEntry struct {
-	AccountID AccountID   `codec:"accountID" json:"accountID"`
-	Mode      AccountMode `codec:"mode" json:"mode"`
-	IsPrimary bool        `codec:"isPrimary" json:"isPrimary"`
-	Signers   []SecretKey `codec:"signers" json:"signers"`
-	Name      string      `codec:"name" json:"name"`
-}
-
-func (o BundleEntry) DeepCopy() BundleEntry {
-	return BundleEntry{
-		AccountID: o.AccountID.DeepCopy(),
-		Mode:      o.Mode.DeepCopy(),
-		IsPrimary: o.IsPrimary,
-		Signers: (func(x []SecretKey) []SecretKey {
-			if x == nil {
-				return nil
-			}
-			ret := make([]SecretKey, len(x))
-			for i, v := range x {
-				vCopy := v.DeepCopy()
-				ret[i] = vCopy
-			}
-			return ret
-		})(o.Signers),
-		Name: o.Name,
-	}
-}
-
 type BundleRestricted struct {
 	Revision       BundleRevision              `codec:"revision" json:"revision"`
 	Prev           Hash                        `codec:"prev" json:"prev"`

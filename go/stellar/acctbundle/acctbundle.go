@@ -10,7 +10,6 @@ import (
 	"github.com/keybase/client/go/libkb"
 	"github.com/keybase/client/go/protocol/keybase1"
 	"github.com/keybase/client/go/protocol/stellar1"
-	"github.com/keybase/client/go/stellar/bundle"
 	"github.com/stellar/go/keypair"
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -49,31 +48,6 @@ func NewInitial(name string) (*stellar1.BundleRestricted, error) {
 	return x, nil
 }
 
-// NewFromBundle creates a BundleRestricted from a Bundle.
-func NewFromBundle(bundle stellar1.Bundle) (*stellar1.BundleRestricted, error) {
-	r := &stellar1.BundleRestricted{
-		Revision:       bundle.Revision,
-		Prev:           bundle.Prev,
-		AccountBundles: make(map[stellar1.AccountID]stellar1.AccountBundle),
-		OwnHash:        bundle.OwnHash,
-	}
-	if r.Revision > 1 && (r.Prev == nil || len(r.Prev) == 0) {
-		return nil, fmt.Errorf("NewFromBundle missing Prev: %+v", bundle)
-	}
-	r.Accounts = make([]stellar1.BundleEntryRestricted, len(bundle.Accounts))
-	for i, acct := range bundle.Accounts {
-		r.Accounts[i] = newEntry(acct.AccountID, acct.Name, acct.IsPrimary, acct.Mode)
-		r.AccountBundles[acct.AccountID] = stellar1.AccountBundle{
-			AccountID: acct.AccountID,
-			Signers:   acct.Signers,
-		}
-	}
-	if err := r.CheckInvariants(); err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
 func newEntry(accountID stellar1.AccountID, name string, isPrimary bool, mode stellar1.AccountMode) stellar1.BundleEntryRestricted {
 	return stellar1.BundleEntryRestricted{
 		AccountID:          accountID,
@@ -82,41 +56,6 @@ func newEntry(accountID stellar1.AccountID, name string, isPrimary bool, mode st
 		IsPrimary:          isPrimary,
 		AcctBundleRevision: 1,
 	}
-}
-
-// BundleFromBundleRestricted is part of the migration strategy to move from Bundles to
-// BundleRestricteds. This should only ever be used as close to the interface with the server
-// as possible: i.e. methods that start with `Post` or `Fetch`.
-func BundleFromBundleRestricted(br stellar1.BundleRestricted) (*stellar1.Bundle, error) {
-	bundle := &stellar1.Bundle{
-		Revision: br.Revision,
-		Prev:     br.Prev,
-		OwnHash:  br.OwnHash,
-	}
-	if bundle.Revision > 1 && (bundle.Prev == nil || len(bundle.Prev) == 0) {
-		return nil, fmt.Errorf("BundleFromBundleRestricted missing Prev: %+v", br)
-	}
-	bundle.Accounts = make([]stellar1.BundleEntry, len(br.Accounts))
-	for i, acct := range br.Accounts {
-		signers := br.AccountBundles[acct.AccountID].Signers
-		if len(signers) != 1 {
-			return nil, fmt.Errorf("BundleFromBundleRestricted missing signer for %v", acct.AccountID)
-		}
-		if acct.Mode != stellar1.AccountMode_USER {
-			return nil, fmt.Errorf("BundleFromBundleRestricted account %v doesnt have mode USER", acct.AccountID)
-		}
-		bundle.Accounts[i] = stellar1.BundleEntry{
-			AccountID: acct.AccountID,
-			Name:      acct.Name,
-			Mode:      acct.Mode,
-			IsPrimary: acct.IsPrimary,
-			Signers:   signers,
-		}
-	}
-	if err := bundle.CheckInvariants(); err != nil {
-		return nil, err
-	}
-	return bundle, nil
 }
 
 func newAccountBundle(accountID stellar1.AccountID, secretKey stellar1.SecretKey) stellar1.AccountBundle {
@@ -530,8 +469,34 @@ func unboxParentV2(versioned stellar1.BundleSecretVersioned, visB64 string) (ste
 }
 
 // decryptParent decrypts an encrypted parent bundle with the provided puk.
-func decryptParent(encBundle stellar1.EncryptedBundle, puk libkb.PerUserKeySeed) (stellar1.BundleSecretVersioned, error) {
-	return bundle.Decrypt(encBundle, puk)
+func decryptParent(encBundle stellar1.EncryptedBundle, puk libkb.PerUserKeySeed) (res stellar1.BundleSecretVersioned, err error) {
+	switch encBundle.V {
+	case 1:
+		// CORE-8135
+		return res, fmt.Errorf("stellar secret bundle encryption version 1 has been retired")
+	case 2:
+	default:
+		return res, fmt.Errorf("unsupported stellar secret bundle encryption version: %v", encBundle.V)
+	}
+
+	// Derive key
+	reason := libkb.DeriveReasonPUKStellarBundle
+	symmetricKey, err := puk.DeriveSymmetricKey(reason)
+	if err != nil {
+		return res, err
+	}
+
+	// Secretbox
+	clearpack, ok := secretbox.Open(nil, encBundle.E,
+		(*[libkb.NaclDHNonceSize]byte)(&encBundle.N),
+		(*[libkb.NaclSecretBoxKeySize]byte)(&symmetricKey))
+	if !ok {
+		return res, errors.New("stellar bundle secret box open failed")
+	}
+
+	// Msgpack (inner)
+	err = libkb.MsgpackDecode(&res, clearpack)
+	return res, err
 }
 
 // decode decodes a base64-encoded encrypted account bundle.

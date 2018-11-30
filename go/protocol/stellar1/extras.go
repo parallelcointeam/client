@@ -118,38 +118,6 @@ func (s SecretKey) SecureNoLogString() string {
 	return string(s)
 }
 
-// CheckInvariants checks that the bundle satisfies
-// 1. No duplicate account IDs
-// 2. Exactly one primary account
-// 3. Non-negative revision numbers
-func (s Bundle) CheckInvariants() error {
-	accountIDs := make(map[AccountID]bool)
-	var foundPrimary bool
-	for _, entry := range s.Accounts {
-		_, found := accountIDs[entry.AccountID]
-		if found {
-			return fmt.Errorf("duplicate account ID: %v", entry.AccountID)
-		}
-		accountIDs[entry.AccountID] = true
-		if entry.IsPrimary {
-			if foundPrimary {
-				return errors.New("multiple primary accounts")
-			}
-			foundPrimary = true
-		}
-		if entry.Mode == AccountMode_NONE {
-			return errors.New("account missing mode")
-		}
-	}
-	if !foundPrimary {
-		return errors.New("missing primary account")
-	}
-	if s.Revision < 1 {
-		return fmt.Errorf("revision %v < 1", s.Revision)
-	}
-	return nil
-}
-
 // CheckInvariants checks that the BundleRestricted satisfies
 // 1. No duplicate account IDs
 // 2. Exactly one primary account
@@ -191,15 +159,6 @@ func (r BundleRestricted) CheckInvariants() error {
 	return nil
 }
 
-func (s Bundle) PrimaryAccount() (BundleEntry, error) {
-	for _, entry := range s.Accounts {
-		if entry.IsPrimary {
-			return entry, nil
-		}
-	}
-	return BundleEntry{}, errors.New("primary stellar account not found")
-}
-
 func (s BundleRestricted) PrimaryAccount() (BundleEntryRestricted, error) {
 	for _, entry := range s.Accounts {
 		if entry.IsPrimary {
@@ -207,15 +166,6 @@ func (s BundleRestricted) PrimaryAccount() (BundleEntryRestricted, error) {
 		}
 	}
 	return BundleEntryRestricted{}, errors.New("primary stellar account not found")
-}
-
-func (s Bundle) Lookup(acctID AccountID) (BundleEntry, error) {
-	for _, entry := range s.Accounts {
-		if entry.AccountID == acctID {
-			return entry, nil
-		}
-	}
-	return BundleEntry{}, errors.New("stellar account not found")
 }
 
 func (s BundleRestricted) Lookup(acctID AccountID) (BundleEntryRestricted, error) {
