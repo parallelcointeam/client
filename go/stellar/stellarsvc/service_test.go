@@ -61,7 +61,7 @@ func TestCreateWallet(t *testing.T) {
 	require.False(t, created)
 
 	t.Logf("Fetch the bundle")
-	bundle, _, _, err := remote.FetchSecretlessBundle(context.Background(), tcs[0].G)
+	bundle, _, err := remote.FetchSecretlessBundle(context.Background(), tcs[0].G)
 	require.NoError(t, err)
 	require.Equal(t, stellar1.BundleRevision(1), bundle.Revision)
 	require.Nil(t, bundle.Prev)
@@ -73,7 +73,7 @@ func TestCreateWallet(t *testing.T) {
 	require.Equal(t, firstAccountName(t, tcs[0]), bundle.Accounts[0].Name)
 	accountID := bundle.Accounts[0].AccountID
 	require.Len(t, bundle.AccountBundles[accountID].Signers, 0)
-	bundle, _, _, err = remote.FetchAccountBundle(context.Background(), tcs[0].G, accountID)
+	bundle, _, err = remote.FetchAccountBundle(context.Background(), tcs[0].G, accountID)
 	require.NoError(t, err)
 	require.Len(t, bundle.AccountBundles[accountID].Signers, 1)
 
@@ -129,7 +129,7 @@ func TestUpkeep(t *testing.T) {
 	g := tcs[0].G
 	setupWithNewBundle(t, tcs[0])
 
-	bundle, _, pukGen, err := remote.FetchSecretlessBundle(ctx, g)
+	bundle, pukGen, err := remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
 	originalID := bundle.OwnHash
 	require.NotNil(t, originalID)
@@ -138,7 +138,7 @@ func TestUpkeep(t *testing.T) {
 	err = stellar.Upkeep(ctx, g)
 	require.NoError(t, err)
 
-	bundle, _, pukGen, err = remote.FetchSecretlessBundle(ctx, g)
+	bundle, pukGen, err = remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
 	require.Equal(t, bundle.OwnHash, originalID, "bundle should be unchanged by no-op upkeep")
 	require.Equal(t, originalPukGen, pukGen)
@@ -154,7 +154,7 @@ func TestUpkeep(t *testing.T) {
 	err = stellar.Upkeep(ctx, g)
 	require.NoError(t, err)
 
-	bundle, _, pukGen, err = remote.FetchSecretlessBundle(ctx, g)
+	bundle, pukGen, err = remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
 	require.NotEqual(t, bundle.OwnHash, originalID, "bundle should be new")
 	require.NotEqual(t, originalPukGen, pukGen, "bundle should be for new puk")
@@ -182,7 +182,7 @@ func TestImportExport(t *testing.T) {
 		require.Error(t, err, "export empty specifier")
 	})
 
-	bundle, _, _, err := remote.FetchWholeBundle(context.Background(), tcs[0].G)
+	bundle, _, err := remote.FetchWholeBundle(context.Background(), tcs[0].G)
 	require.NoError(t, err)
 
 	mustAskForPassphrase(func() {
@@ -267,7 +267,7 @@ func TestImportExport(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, own)
 
-	bundle, _, _, err = remote.FetchSecretlessBundle(context.Background(), tcs[0].G)
+	bundle, _, err = remote.FetchSecretlessBundle(context.Background(), tcs[0].G)
 	require.NoError(t, err)
 	require.Len(t, bundle.Accounts, 3)
 }
@@ -863,9 +863,8 @@ func TestAccountBundleFlows(t *testing.T) {
 	g := tcs[0].G
 	setupWithNewBundle(t, tcs[0])
 
-	bundle, version, _, err := remote.FetchSecretlessBundle(ctx, g)
+	bundle, _, err := remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
-	require.Equal(t, version, stellar1.BundleVersion_V2)
 	accounts := bundle.Accounts
 	secretsMap := bundle.AccountBundles
 	var accountIDs []stellar1.AccountID
@@ -903,9 +902,8 @@ func TestAccountBundleFlows(t *testing.T) {
 	assertFetchAccountBundles(t, tcs[0], a1)
 
 	// FetchWholeBundle
-	fullBundle, version, _, err := remote.FetchWholeBundle(ctx, g)
+	fullBundle, _, err := remote.FetchWholeBundle(ctx, g)
 	require.NoError(t, err)
-	require.Equal(t, version, stellar1.BundleVersion_V2)
 	err = fullBundle.CheckInvariants()
 	require.NoError(t, err)
 	require.Equal(t, 3, len(fullBundle.Accounts))
@@ -930,7 +928,7 @@ func TestAccountBundleFlows(t *testing.T) {
 		NewName:   "rename",
 	})
 	require.NoError(t, err)
-	bundle, _, _, err = remote.FetchAccountBundle(ctx, g, a2)
+	bundle, _, err = remote.FetchAccountBundle(ctx, g, a2)
 	require.NoError(t, err)
 	for _, acc := range bundle.Accounts {
 		if acc.AccountID == a2 {
@@ -947,7 +945,7 @@ func TestAccountBundleFlows(t *testing.T) {
 	})
 	require.NoError(t, err)
 	// fetching this account explicitly should error
-	_, _, _, err = remote.FetchAccountBundle(ctx, g, a2)
+	_, _, err = remote.FetchAccountBundle(ctx, g, a2)
 	require.Error(t, err)
 	aerr, ok := err.(libkb.AppStatusError)
 	if !ok {
@@ -956,7 +954,7 @@ func TestAccountBundleFlows(t *testing.T) {
 	require.Equal(t, libkb.SCStellarMissingAccount, aerr.Code)
 	// fetching everything should yield a bundle that
 	// does not include this account
-	bundle, _, _, err = remote.FetchWholeBundle(ctx, g)
+	bundle, _, err = remote.FetchWholeBundle(ctx, g)
 	require.NoError(t, err)
 	for _, acc := range bundle.Accounts {
 		require.False(t, acc.AccountID == a2)
@@ -970,7 +968,7 @@ func TestAccountBundleFlows(t *testing.T) {
 		Name: "skittles",
 	})
 	require.NoError(t, err)
-	bundle, _, _, err = remote.FetchSecretlessBundle(ctx, g)
+	bundle, _, err = remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
 	found := false
 	for _, acc := range bundle.Accounts {
@@ -987,9 +985,8 @@ func assertFetchAccountBundles(t *testing.T, tc *TestContext, primaryAccountID s
 	// fetch a secretless bundle to get all of the accountIDs
 	ctx := context.Background()
 	g := tc.G
-	secretlessBundle, version, _, err := remote.FetchSecretlessBundle(ctx, g)
+	secretlessBundle, _, err := remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
-	require.Equal(t, version, stellar1.BundleVersion_V2)
 	err = secretlessBundle.CheckInvariants()
 	require.NoError(t, err)
 	var accountIDs []stellar1.AccountID
@@ -1005,9 +1002,8 @@ func assertFetchAccountBundles(t *testing.T, tc *TestContext, primaryAccountID s
 	// fetch the account bundle for each account and validate that it looks correct
 	// for each account in the bundle including the ones not explicitly fetched
 	for _, accountID := range accountIDs {
-		fetchedBundle, version, _, err := remote.FetchAccountBundle(ctx, g, accountID)
+		fetchedBundle, _, err := remote.FetchAccountBundle(ctx, g, accountID)
 		require.NoError(t, err)
-		require.Equal(t, version, stellar1.BundleVersion_V2)
 		err = fetchedBundle.CheckInvariants()
 		require.NoError(t, err)
 		ab := fetchedBundle.AccountBundles
@@ -1052,9 +1048,8 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	rev2AcctBundle, version, _, err := remote.FetchAccountBundle(ctx, g, a1)
+	rev2AcctBundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	require.Equal(t, stellar1.BundleRevision(2), rev2AcctBundle.Revision)
 	// NOTE: we're using this rev2AcctBundle later...
 
@@ -1064,7 +1059,7 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 	require.NoError(t, err)
 
 	// this is a desktop device, so this should now fail
-	_, _, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	_, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.Error(t, err)
 	aerr, ok := err.(libkb.AppStatusError)
 	if !ok {
@@ -1082,9 +1077,8 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 
 	primaryAcctName := fmt.Sprintf("%s's account", tc.Fu.Username)
 	// can pull a secretless bundle though (not specifying an accountID)
-	rev3AcctBundle, _, _, err := remote.FetchSecretlessBundle(ctx, g)
+	rev3AcctBundle, _, err := remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	require.Equal(t, stellar1.BundleRevision(3), rev3AcctBundle.Revision)
 	accountID0 := rev3AcctBundle.Accounts[0].AccountID
 	require.Equal(t, primaryAcctName, rev3AcctBundle.Accounts[0].Name)
@@ -1126,10 +1120,9 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 
 	checker := newAcctBundleChecker(a1, s1)
 
-	acctBundle, version, _, err := remote.FetchAccountBundle(ctx, g, a1)
+	acctBundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
 	t.Logf("acctBundle: %+v", acctBundle)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	checker.assertBundle(t, acctBundle, 2, 1, stellar1.AccountMode_USER)
 
 	err = tc.Srv.SetAccountMobileOnlyLocal(ctx, stellar1.SetAccountMobileOnlyLocalArg{
@@ -1138,7 +1131,7 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 	require.NoError(t, err)
 
 	// this is a recent mobile device, so this should now fail
-	_, _, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	_, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.Error(t, err)
 	aerr, ok := err.(libkb.AppStatusError)
 	if !ok {
@@ -1149,9 +1142,8 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 	// this will make the device older on the server
 	makeActiveDeviceOlder(t, g)
 	// so now the fetch will work
-	acctBundle, version, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	checker.assertBundle(t, acctBundle, 3, 2, stellar1.AccountMode_MOBILE)
 
 	// this should not post a new bundle
@@ -1159,18 +1151,16 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 		AccountID: a1,
 	})
 	require.NoError(t, err)
-	acctBundle, version, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	checker.assertBundle(t, acctBundle, 3, 2, stellar1.AccountMode_MOBILE)
 
 	// make it accessible on all devices
 	err = remote.MakeAccountAllDevices(ctx, g, a1)
 	require.NoError(t, err)
 
-	acctBundle, version, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleVersion_V2, version)
 	checker.assertBundle(t, acctBundle, 4, 3, stellar1.AccountMode_USER)
 }
 
