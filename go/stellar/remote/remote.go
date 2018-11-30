@@ -97,60 +97,8 @@ func buildV2ChainLinkPayload(m libkb.MetaContext, bundle stellar1.BundleRestrict
 	return &payload, nil
 }
 
-func buildV1ChainLinkPayload(m libkb.MetaContext, bundleRestricted stellar1.BundleRestricted, me *libkb.User, pukGen keybase1.PerUserKeyGeneration, pukSeed libkb.PerUserKeySeed, deviceSigKey libkb.GenericKey) (*libkb.JSONPayload, error) {
-	v1Bundle, err := acctbundle.BundleFromBundleRestricted(bundleRestricted)
-	if err != nil {
-		return nil, err
-	}
-
-	err = v1Bundle.CheckInvariants()
-	if err != nil {
-		return nil, err
-	}
-	// Find the new primary account for the chain link.
-	if len(v1Bundle.Accounts) < 1 {
-		return nil, errors.New("stellar bundle has no accounts")
-	}
-	stellarAccount, err := v1Bundle.PrimaryAccount()
-	if err != nil {
-		return nil, err
-	}
-	if len(stellarAccount.Signers) < 1 {
-		return nil, errors.New("stellar bundle has no signers")
-	}
-	if !stellarAccount.IsPrimary {
-		return nil, errors.New("initial stellar account is not primary")
-	}
-	m.CDebugf("Stellar.PostWithChainLink: revision:%v accountID:%v pukGen:%v", v1Bundle.Revision, stellarAccount.AccountID, pukGen)
-	boxed, err := bundle.Box(*v1Bundle, pukGen, pukSeed)
-	if err != nil {
-		return nil, err
-	}
-
-	m.CDebugf("Stellar.PostWithChainLink: make sigs")
-
-	sig, err := libkb.StellarProofReverseSigned(m, me, stellarAccount.AccountID, stellarAccount.Signers[0], deviceSigKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var sigsList []libkb.JSONPayload
-	sigsList = append(sigsList, sig)
-
-	payload := make(libkb.JSONPayload)
-	payload["sigs"] = sigsList
-	section := make(libkb.JSONPayload)
-	section["encrypted"] = boxed.EncB64
-	section["visible"] = boxed.VisB64
-	section["version"] = int(boxed.FormatVersion)
-	section["miniversion"] = 2
-	payload["stellar"] = section
-
-	return &payload, nil
-}
-
 // Post a bundle to the server with a chainlink.
-func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted, v2Link bool) (err error) {
+func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted) (err error) {
 	defer g.CTraceTimed(ctx, "Stellar.PostWithChainlink", func() error { return err })()
 
 	m := libkb.NewMetaContext(ctx, g)
@@ -179,16 +127,9 @@ func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle 
 	}
 
 	var payload *libkb.JSONPayload
-	if v2Link {
-		payload, err = buildV2ChainLinkPayload(m, clearBundle, me, pukGen, pukSeed, deviceSigKey)
-		if err != nil {
-			return err
-		}
-	} else {
-		payload, err = buildV1ChainLinkPayload(m, clearBundle, me, pukGen, pukSeed, deviceSigKey)
-		if err != nil {
-			return err
-		}
+	payload, err = buildV2ChainLinkPayload(m, clearBundle, me, pukGen, pukSeed, deviceSigKey)
+	if err != nil {
+		return err
 	}
 
 	m.CDebugf("Stellar.PostWithChainLink: post")

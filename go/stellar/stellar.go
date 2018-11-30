@@ -45,7 +45,7 @@ func CreateWallet(ctx context.Context, g *libkb.GlobalContext) (created bool, er
 	if err != nil {
 		return false, err
 	}
-	err = remote.PostWithChainlink(ctx, g, *clearBundle, true)
+	err = remote.PostWithChainlink(ctx, g, *clearBundle)
 	switch e := err.(type) {
 	case nil:
 		// ok
@@ -159,15 +159,11 @@ func ImportSecretKey(ctx context.Context, g *libkb.GlobalContext, secretKey stel
 	if err != nil {
 		return err
 	}
-	var v2Link bool
 	if version == stellar1.BundleVersion_V1 {
 		prevBundle, _, _, err = remote.FetchWholeBundle(ctx, g)
 		if err != nil {
 			return err
 		}
-		v2Link = false
-	} else {
-		v2Link = true
 	}
 
 	nextBundle := acctbundle.AdvanceBundle(*prevBundle)
@@ -179,7 +175,7 @@ func ImportSecretKey(ctx context.Context, g *libkb.GlobalContext, secretKey stel
 	if makePrimary {
 		// primary account changes need sigchain link
 		// (so other users can find user's primary account id)
-		err = remote.PostWithChainlink(ctx, g, nextBundle, v2Link)
+		err = remote.PostWithChainlink(ctx, g, nextBundle)
 	} else {
 		err = remote.Post(ctx, g, nextBundle, version)
 	}
@@ -1279,7 +1275,7 @@ func SetAccountAsPrimary(m libkb.MetaContext, accountID stellar1.AccountID) (err
 	if accountID.IsNil() {
 		return errors.New("passed empty AccountID")
 	}
-	bundle, version, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
+	bundle, _, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
 	if err != nil {
 		return err
 	}
@@ -1305,9 +1301,7 @@ func SetAccountAsPrimary(m libkb.MetaContext, accountID stellar1.AccountID) (err
 		return fmt.Errorf("account not found: %v", accountID)
 	}
 	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
-	var v2Link bool
-	v2Link = !(version == stellar1.BundleVersion_V1)
-	return remote.PostWithChainlink(m.Ctx(), m.G(), nextBundle, v2Link)
+	return remote.PostWithChainlink(m.Ctx(), m.G(), nextBundle)
 }
 
 func DeleteAccount(m libkb.MetaContext, accountID stellar1.AccountID) error {
