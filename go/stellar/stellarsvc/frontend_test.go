@@ -546,7 +546,7 @@ func TestAcceptDisclaimer(t *testing.T) {
 	require.Equal(t, false, accepted)
 
 	t.Logf("can't create wallet before disclaimer")
-	_, err = stellar.CreateWallet(context.Background(), tcs[0].G, false)
+	_, err = stellar.CreateWallet(context.Background(), tcs[0].G)
 	require.Error(t, err)
 	require.True(t, libkb.IsAppStatusErrorCode(err, keybase1.StatusCode_SCStellarNeedDisclaimer))
 
@@ -678,7 +678,10 @@ func TestGetPaymentsLocal(t *testing.T) {
 			PublicMemo:    "public note",
 		})
 		require.Error(t, err)
-		require.Equal(t, "Sender account not found", err.Error())
+		aerr, ok := err.(libkb.AppStatusError)
+		require.True(t, ok)
+		require.Equal(t, keybase1.StatusCode(aerr.Code), keybase1.StatusCode_SCStellarMissingAccount)
+		require.Equal(t, "account missing from existing visible data in database (error 3105)", err.Error())
 
 		_, err = srvSender.SendPaymentLocal(context.Background(), stellar1.SendPaymentLocalArg{
 			From:          accountIDSender,

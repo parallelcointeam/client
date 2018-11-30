@@ -30,7 +30,7 @@ const AccountNameMaxRunes = 24
 // CreateWallet creates and posts an initial stellar bundle for a user.
 // Only succeeds if they do not already have one.
 // Safe (but wasteful) to call even if the user has a bundle already.
-func CreateWallet(ctx context.Context, g *libkb.GlobalContext, v2Link bool) (created bool, err error) {
+func CreateWallet(ctx context.Context, g *libkb.GlobalContext) (created bool, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.CreateWallet", func() error { return err })()
 	loggedInUsername := g.ActiveDevice.Username(libkb.NewMetaContext(ctx, g))
 	if !loggedInUsername.IsValid() {
@@ -45,7 +45,7 @@ func CreateWallet(ctx context.Context, g *libkb.GlobalContext, v2Link bool) (cre
 	if err != nil {
 		return false, err
 	}
-	err = remote.PostWithChainlink(ctx, g, *clearBundle, v2Link)
+	err = remote.PostWithChainlink(ctx, g, *clearBundle, true)
 	switch e := err.(type) {
 	case nil:
 		// ok
@@ -107,7 +107,7 @@ func CreateWalletGated(ctx context.Context, g *libkb.GlobalContext) (res CreateW
 		g.Log.CDebugf(ctx, "CreateWalletGated: server did not recommend wallet creation")
 		return res, nil
 	}
-	justCreated, err := CreateWallet(ctx, g, false)
+	justCreated, err := CreateWallet(ctx, g)
 	if err != nil {
 		return res, nil
 	}
