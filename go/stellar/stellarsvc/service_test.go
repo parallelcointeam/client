@@ -1190,7 +1190,7 @@ func newAcctBundleChecker(a stellar1.AccountID, s stellar1.SecretKey) *acctBundl
 	}
 }
 
-func (a *acctBundleChecker) assertBundle(t *testing.T, bundle *stellar1.BundleRestricted, revisionParent, revisionAccount stellar1.BundleRevision, mode stellar1.AccountMode) {
+func (a *acctBundleChecker) assertBundle(t *testing.T, bundle *stellar1.Bundle, revisionParent, revisionAccount stellar1.BundleRevision, mode stellar1.AccountMode) {
 	require.NotNil(t, bundle)
 	require.Equal(t, revisionParent, bundle.Revision)
 	require.Len(t, bundle.AccountBundles, 1)

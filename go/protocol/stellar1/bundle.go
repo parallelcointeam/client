@@ -930,24 +930,24 @@ func (o AccountBundleSecretUnsupported) DeepCopy() AccountBundleSecretUnsupporte
 	return AccountBundleSecretUnsupported{}
 }
 
-type BundleRestricted struct {
+type Bundle struct {
 	Revision       BundleRevision              `codec:"revision" json:"revision"`
 	Prev           Hash                        `codec:"prev" json:"prev"`
 	OwnHash        Hash                        `codec:"ownHash" json:"ownHash"`
-	Accounts       []BundleEntryRestricted     `codec:"accounts" json:"accounts"`
+	Accounts       []BundleEntry               `codec:"accounts" json:"accounts"`
 	AccountBundles map[AccountID]AccountBundle `codec:"accountBundles" json:"accountBundles"`
 }
 
-func (o BundleRestricted) DeepCopy() BundleRestricted {
-	return BundleRestricted{
+func (o Bundle) DeepCopy() Bundle {
+	return Bundle{
 		Revision: o.Revision.DeepCopy(),
 		Prev:     o.Prev.DeepCopy(),
 		OwnHash:  o.OwnHash.DeepCopy(),
-		Accounts: (func(x []BundleEntryRestricted) []BundleEntryRestricted {
+		Accounts: (func(x []BundleEntry) []BundleEntry {
 			if x == nil {
 				return nil
 			}
-			ret := make([]BundleEntryRestricted, len(x))
+			ret := make([]BundleEntry, len(x))
 			for i, v := range x {
 				vCopy := v.DeepCopy()
 				ret[i] = vCopy
@@ -969,7 +969,7 @@ func (o BundleRestricted) DeepCopy() BundleRestricted {
 	}
 }
 
-type BundleEntryRestricted struct {
+type BundleEntry struct {
 	AccountID          AccountID      `codec:"accountID" json:"accountID"`
 	Mode               AccountMode    `codec:"mode" json:"mode"`
 	IsPrimary          bool           `codec:"isPrimary" json:"isPrimary"`
@@ -978,8 +978,8 @@ type BundleEntryRestricted struct {
 	EncAcctBundleHash  Hash           `codec:"encAcctBundleHash" json:"encAcctBundleHash"`
 }
 
-func (o BundleEntryRestricted) DeepCopy() BundleEntryRestricted {
-	return BundleEntryRestricted{
+func (o BundleEntry) DeepCopy() BundleEntry {
+	return BundleEntry{
 		AccountID:          o.AccountID.DeepCopy(),
 		Mode:               o.Mode.DeepCopy(),
 		IsPrimary:          o.IsPrimary,

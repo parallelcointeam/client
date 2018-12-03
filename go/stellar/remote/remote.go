@@ -46,7 +46,7 @@ func acctBundlesEnabled(m libkb.MetaContext) bool {
 	return enabled
 }
 
-func buildChainLinkPayload(m libkb.MetaContext, bundle stellar1.BundleRestricted, me *libkb.User, pukGen keybase1.PerUserKeyGeneration, pukSeed libkb.PerUserKeySeed, deviceSigKey libkb.GenericKey) (*libkb.JSONPayload, error) {
+func buildChainLinkPayload(m libkb.MetaContext, bundle stellar1.Bundle, me *libkb.User, pukGen keybase1.PerUserKeyGeneration, pukSeed libkb.PerUserKeySeed, deviceSigKey libkb.GenericKey) (*libkb.JSONPayload, error) {
 	err := bundle.CheckInvariants()
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func buildChainLinkPayload(m libkb.MetaContext, bundle stellar1.BundleRestricted
 }
 
 // Post a bundle to the server with a chainlink.
-func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted) (err error) {
+func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.Bundle) (err error) {
 	defer g.CTraceTimed(ctx, "Stellar.PostWithChainlink", func() error { return err })()
 
 	m := libkb.NewMetaContext(ctx, g)
@@ -149,7 +149,7 @@ func PostWithChainlink(ctx context.Context, g *libkb.GlobalContext, clearBundle 
 }
 
 // Post a bundle to the server.
-func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.BundleRestricted) (err error) {
+func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.Bundle) (err error) {
 	defer g.CTraceTimed(ctx, "Stellar.Post", func() error { return err })()
 
 	err = clearBundle.CheckInvariants()
@@ -180,7 +180,7 @@ func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.Bund
 	return err
 }
 
-func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountID *stellar1.AccountID) (acctBundle *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGeneration, err error) {
+func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountID *stellar1.AccountID) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.fetchBundleForAccount", func() error { return err })()
 
 	fetchArgs := libkb.HTTPArgs{}
@@ -207,7 +207,7 @@ func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountI
 // but without any specified AccountID and therefore no secrets (signers).
 // This method is safe to call by any of a user's devices even if one or more of
 // the accounts is marked as being mobile only.
-func FetchSecretlessBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchSecretlessBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchSecretlessBundle", func() error { return err })()
 
 	return fetchBundleForAccount(ctx, g, nil)
@@ -217,7 +217,7 @@ func FetchSecretlessBundle(ctx context.Context, g *libkb.GlobalContext) (acctBun
 // this method will bubble up an error if it's called by a Desktop device for
 // an account that is mobile only. If you don't need the secrets, use
 // FetchSecretlessBundle instead.
-func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (acctBundle *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchAccountBundle", func() error { return err })()
 
 	return fetchBundleForAccount(ctx, g, &accountID)
@@ -227,7 +227,7 @@ func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID s
 // to get the signers for each of them and build a single, full bundle with all
 // of the information. This will error from any device that does not have access
 // to all of the accounts (e.g. a desktop after mobile-only)
-func FetchWholeBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchWholeBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchWholeBundle", func() error { return err })()
 
 	bundle, pukGen, err := FetchSecretlessBundle(ctx, g)

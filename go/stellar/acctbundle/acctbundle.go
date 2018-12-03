@@ -14,15 +14,15 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// New creates a BundleRestricted from an existing secret key.
-func New(secret stellar1.SecretKey, name string) (*stellar1.BundleRestricted, error) {
+// New creates a Bundle from an existing secret key.
+func New(secret stellar1.SecretKey, name string) (*stellar1.Bundle, error) {
 	secretKey, accountID, _, err := libkb.ParseStellarSecretKey(string(secret))
 	if err != nil {
 		return nil, err
 	}
-	return &stellar1.BundleRestricted{
+	return &stellar1.Bundle{
 		Revision: 1,
-		Accounts: []stellar1.BundleEntryRestricted{
+		Accounts: []stellar1.BundleEntry{
 			newEntry(accountID, name, false, stellar1.AccountMode_USER),
 		},
 		AccountBundles: map[stellar1.AccountID]stellar1.AccountBundle{
@@ -31,8 +31,8 @@ func New(secret stellar1.SecretKey, name string) (*stellar1.BundleRestricted, er
 	}, nil
 }
 
-// NewInitial creates a BundleRestricted with a new random secret key.
-func NewInitial(name string) (*stellar1.BundleRestricted, error) {
+// NewInitial creates a Bundle with a new random secret key.
+func NewInitial(name string) (*stellar1.Bundle, error) {
 	full, err := keypair.Random()
 	if err != nil {
 		return nil, err
@@ -48,8 +48,8 @@ func NewInitial(name string) (*stellar1.BundleRestricted, error) {
 	return x, nil
 }
 
-func newEntry(accountID stellar1.AccountID, name string, isPrimary bool, mode stellar1.AccountMode) stellar1.BundleEntryRestricted {
-	return stellar1.BundleEntryRestricted{
+func newEntry(accountID stellar1.AccountID, name string, isPrimary bool, mode stellar1.AccountMode) stellar1.BundleEntry {
+	return stellar1.BundleEntry{
 		AccountID:          accountID,
 		Name:               name,
 		Mode:               mode,
@@ -65,7 +65,7 @@ func newAccountBundle(accountID stellar1.AccountID, secretKey stellar1.SecretKey
 	}
 }
 
-// BoxedEncoded is the result of boxing and encoding a BundleRestricted object.
+// BoxedEncoded is the result of boxing and encoding a Bundle object.
 type BoxedEncoded struct {
 	EncParent           stellar1.EncryptedBundle
 	EncParentB64        string // base64 msgpacked Enc
@@ -81,7 +81,7 @@ func newBoxedEncoded() *BoxedEncoded {
 	}
 }
 
-func newVisibleParent(a *stellar1.BundleRestricted, accountsVisible []stellar1.BundleVisibleEntryV2) stellar1.BundleVisibleV2 {
+func newVisibleParent(a *stellar1.Bundle, accountsVisible []stellar1.BundleVisibleEntryV2) stellar1.BundleVisibleV2 {
 	return stellar1.BundleVisibleV2{
 		Revision: a.Revision,
 		Prev:     a.Prev,
@@ -112,8 +112,8 @@ type BundleEncoded struct {
 	AcctBundles         map[stellar1.AccountID]string `json:"account_bundles"`
 }
 
-// BoxAndEncode encrypts and encodes a BundleRestricted object.
-func BoxAndEncode(a *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGeneration, puk libkb.PerUserKeySeed) (*BoxedEncoded, error) {
+// BoxAndEncode encrypts and encodes a Bundle object.
+func BoxAndEncode(a *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, puk libkb.PerUserKeySeed) (*BoxedEncoded, error) {
 	err := a.CheckInvariants()
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func BoxAndEncode(a *stellar1.BundleRestricted, pukGen keybase1.PerUserKeyGenera
 	return boxed, nil
 }
 
-func visibilitySplit(a *stellar1.BundleRestricted) ([]stellar1.BundleVisibleEntryV2, []stellar1.BundleSecretEntryV2) {
+func visibilitySplit(a *stellar1.Bundle) ([]stellar1.BundleVisibleEntryV2, []stellar1.BundleSecretEntryV2) {
 	vis := make([]stellar1.BundleVisibleEntryV2, len(a.Accounts))
 	sec := make([]stellar1.BundleSecretEntryV2, len(a.Accounts))
 	for i, acct := range a.Accounts {
@@ -256,7 +256,7 @@ var ErrNoChangeNecessary = errors.New("no account mode change is necessary")
 // MakeMobileOnly transforms a stellar1.AccountBundle into a mobile-only
 // bundle.  This advances the revision.  If it's already mobile-only,
 // this function will return ErrNoChangeNecessary.
-func MakeMobileOnly(a *stellar1.BundleRestricted, accountID stellar1.AccountID) error {
+func MakeMobileOnly(a *stellar1.Bundle, accountID stellar1.AccountID) error {
 	var found bool
 	for i, account := range a.Accounts {
 		if account.AccountID == accountID {
@@ -278,7 +278,7 @@ func MakeMobileOnly(a *stellar1.BundleRestricted, accountID stellar1.AccountID) 
 // MakeAllDevices transforms a stellar1.AccountBundle into an all-device
 // bundle.  This advances the revision.  If it's already all-device,
 // this function will return ErrNoChangeNecessary.
-func MakeAllDevices(a *stellar1.BundleRestricted, accountID stellar1.AccountID) error {
+func MakeAllDevices(a *stellar1.Bundle, accountID stellar1.AccountID) error {
 	var found bool
 	for i, account := range a.Accounts {
 		if account.AccountID == accountID {
@@ -305,7 +305,7 @@ type PukFinder interface {
 // DecodeAndUnbox decodes the encrypted and visible encoded bundles and unboxes
 // the encrypted bundle using PukFinder to find the correct puk.  It combines
 // the results into a stellar1.AccountBundle.
-func DecodeAndUnbox(m libkb.MetaContext, finder PukFinder, encodedBundle BundleEncoded) (*stellar1.BundleRestricted, stellar1.BundleVersion, keybase1.PerUserKeyGeneration, error) {
+func DecodeAndUnbox(m libkb.MetaContext, finder PukFinder, encodedBundle BundleEncoded) (*stellar1.Bundle, stellar1.BundleVersion, keybase1.PerUserKeyGeneration, error) {
 	encBundle, hash, err := decodeParent(encodedBundle.EncParent)
 	if err != nil {
 		return nil, 0, 0, err
@@ -338,7 +338,7 @@ func DecodeAndUnbox(m libkb.MetaContext, finder PukFinder, encodedBundle BundleE
 	return parent, parentVersion, encBundle.Gen, nil
 }
 
-func decodeAndUnboxAcctBundle(m libkb.MetaContext, finder PukFinder, encB64 string, parentEntry stellar1.BundleEntryRestricted) (*stellar1.AccountBundle, error) {
+func decodeAndUnboxAcctBundle(m libkb.MetaContext, finder PukFinder, encB64 string, parentEntry stellar1.BundleEntry) (*stellar1.AccountBundle, error) {
 	eab, hash, err := decode(encB64)
 	if err != nil {
 		return nil, err
@@ -420,7 +420,7 @@ func decodeParent(encryptedB64 string) (stellar1.EncryptedBundle, stellar1.Hash,
 
 // unboxParent unboxes an encrypted parent bundle and decodes the visual portion of the bundle.
 // It validates the visible hash in the secret portion.
-func unboxParent(encBundle stellar1.EncryptedBundle, hash stellar1.Hash, visB64 string, puk libkb.PerUserKeySeed) (*stellar1.BundleRestricted, stellar1.BundleVersion, error) {
+func unboxParent(encBundle stellar1.EncryptedBundle, hash stellar1.Hash, visB64 string, puk libkb.PerUserKeySeed) (*stellar1.Bundle, stellar1.BundleVersion, error) {
 	versioned, err := decryptParent(encBundle, puk)
 	if err != nil {
 		return nil, 0, err
@@ -430,7 +430,7 @@ func unboxParent(encBundle stellar1.EncryptedBundle, hash stellar1.Hash, visB64 
 		return nil, 0, err
 	}
 
-	var bundleOut stellar1.BundleRestricted
+	var bundleOut stellar1.Bundle
 	switch version {
 	case stellar1.BundleVersion_V2:
 		bundleOut, err = unboxParentV2(versioned, visB64)
@@ -449,8 +449,8 @@ func unboxParent(encBundle stellar1.EncryptedBundle, hash stellar1.Hash, visB64 
 	return &bundleOut, version, nil
 }
 
-func unboxParentV2(versioned stellar1.BundleSecretVersioned, visB64 string) (stellar1.BundleRestricted, error) {
-	var empty stellar1.BundleRestricted
+func unboxParentV2(versioned stellar1.BundleSecretVersioned, visB64 string) (stellar1.Bundle, error) {
+	var empty stellar1.Bundle
 	visiblePack, err := base64.StdEncoding.DecodeString(visB64)
 	if err != nil {
 		return empty, err
@@ -600,13 +600,13 @@ type WithSecret struct {
 // and extracts them into a convenience type acctbundle.WithSecret.
 // It will return libkb.NotFoundError if it can't find the secret or the
 // account in the bundle.
-func AccountWithSecret(bundle *stellar1.BundleRestricted, accountID stellar1.AccountID) (*WithSecret, error) {
+func AccountWithSecret(bundle *stellar1.Bundle, accountID stellar1.AccountID) (*WithSecret, error) {
 	secret, ok := bundle.AccountBundles[accountID]
 	if !ok {
 		return nil, libkb.NotFoundError{}
 	}
 	// ugh
-	var found *stellar1.BundleEntryRestricted
+	var found *stellar1.BundleEntry
 	for _, a := range bundle.Accounts {
 		if a.AccountID == accountID {
 			found = &a
@@ -626,10 +626,10 @@ func AccountWithSecret(bundle *stellar1.BundleRestricted, accountID stellar1.Acc
 	}, nil
 }
 
-func convertVisibleAccounts(in []stellar1.BundleVisibleEntryV2) []stellar1.BundleEntryRestricted {
-	out := make([]stellar1.BundleEntryRestricted, len(in))
+func convertVisibleAccounts(in []stellar1.BundleVisibleEntryV2) []stellar1.BundleEntry {
+	out := make([]stellar1.BundleEntry, len(in))
 	for i, e := range in {
-		out[i] = stellar1.BundleEntryRestricted{
+		out[i] = stellar1.BundleEntry{
 			AccountID:          e.AccountID,
 			Mode:               e.Mode,
 			IsPrimary:          e.IsPrimary,
@@ -642,30 +642,30 @@ func convertVisibleAccounts(in []stellar1.BundleVisibleEntryV2) []stellar1.Bundl
 
 // merge combines the versioned secret account bundle and the visible account bundle into
 // a stellar1.AccountBundle for local use.
-func merge(secret stellar1.BundleSecretV2, visible stellar1.BundleVisibleV2) (stellar1.BundleRestricted, error) {
+func merge(secret stellar1.BundleSecretV2, visible stellar1.BundleVisibleV2) (stellar1.Bundle, error) {
 	if len(secret.Accounts) != len(visible.Accounts) {
-		return stellar1.BundleRestricted{}, errors.New("invalid bundle, mismatched number of visible and secret accounts")
+		return stellar1.Bundle{}, errors.New("invalid bundle, mismatched number of visible and secret accounts")
 	}
 	accounts := convertVisibleAccounts(visible.Accounts)
 
 	// these should be in the same order
 	for i, secretAccount := range secret.Accounts {
 		if accounts[i].AccountID != secretAccount.AccountID {
-			return stellar1.BundleRestricted{}, errors.New("invalid bundle, mismatched order of visible and secret accounts")
+			return stellar1.Bundle{}, errors.New("invalid bundle, mismatched order of visible and secret accounts")
 		}
 		accounts[i].Name = secretAccount.Name
 	}
-	return stellar1.BundleRestricted{
+	return stellar1.Bundle{
 		Revision: visible.Revision,
 		Prev:     visible.Prev,
 		Accounts: accounts,
 	}, nil
 }
 
-// AdvanceBundle only advances the revisions and hashes on the BundleRestricted
+// AdvanceBundle only advances the revisions and hashes on the Bundle
 // and not on the accounts. This is useful for adding and removing accounts
 // but not for changing them.
-func AdvanceBundle(prevBundle stellar1.BundleRestricted) stellar1.BundleRestricted {
+func AdvanceBundle(prevBundle stellar1.Bundle) stellar1.Bundle {
 	nextBundle := prevBundle.DeepCopy()
 	nextBundle.Prev = nextBundle.OwnHash
 	nextBundle.OwnHash = nil
@@ -673,16 +673,16 @@ func AdvanceBundle(prevBundle stellar1.BundleRestricted) stellar1.BundleRestrict
 	return nextBundle
 }
 
-// AdvanceAccounts advances the revisions and hashes on the BundleRestricted
+// AdvanceAccounts advances the revisions and hashes on the Bundle
 // as well as on the specified Accounts. This is useful for mutating one or more
 // of the accounts in the bundle, e.g. changing which one is Primary.
-func AdvanceAccounts(prevBundle stellar1.BundleRestricted, accountIDs []stellar1.AccountID) stellar1.BundleRestricted {
+func AdvanceAccounts(prevBundle stellar1.Bundle, accountIDs []stellar1.AccountID) stellar1.Bundle {
 	nextBundle := prevBundle.DeepCopy()
 	nextBundle.Prev = nextBundle.OwnHash
 	nextBundle.OwnHash = nil
 	nextBundle.Revision++
 
-	var nextAccounts []stellar1.BundleEntryRestricted
+	var nextAccounts []stellar1.BundleEntry
 	for _, acct := range nextBundle.Accounts {
 		copiedAcct := acct.DeepCopy()
 		for _, accountID := range accountIDs {
@@ -697,16 +697,16 @@ func AdvanceAccounts(prevBundle stellar1.BundleRestricted, accountIDs []stellar1
 	return nextBundle
 }
 
-// AdvanceAll advances the revisions and hashes on the BundleRestricted
+// AdvanceAll advances the revisions and hashes on the Bundle
 // as well as on all of the Accounts. This is useful for reencryption of
 // everything, e.g. Upkeep.
-func AdvanceAll(prevBundle stellar1.BundleRestricted) stellar1.BundleRestricted {
+func AdvanceAll(prevBundle stellar1.Bundle) stellar1.Bundle {
 	nextBundle := prevBundle.DeepCopy()
 	nextBundle.Prev = nextBundle.OwnHash
 	nextBundle.OwnHash = nil
 	nextBundle.Revision++
 
-	var nextAccounts []stellar1.BundleEntryRestricted
+	var nextAccounts []stellar1.BundleEntry
 	for _, acct := range nextBundle.Accounts {
 		copiedAcct := acct.DeepCopy()
 		copiedAcct.AcctBundleRevision++
@@ -718,7 +718,7 @@ func AdvanceAll(prevBundle stellar1.BundleRestricted) stellar1.BundleRestricted 
 }
 
 // AddAccount adds an account to the bundle. Mutates `bundle`.
-func AddAccount(bundle *stellar1.BundleRestricted, secretKey stellar1.SecretKey, name string, makePrimary bool) (err error) {
+func AddAccount(bundle *stellar1.Bundle, secretKey stellar1.SecretKey, name string, makePrimary bool) (err error) {
 	if bundle == nil {
 		return fmt.Errorf("nil bundle")
 	}
@@ -734,7 +734,7 @@ func AddAccount(bundle *stellar1.BundleRestricted, secretKey stellar1.SecretKey,
 			bundle.Accounts[i].IsPrimary = false
 		}
 	}
-	bundle.Accounts = append(bundle.Accounts, stellar1.BundleEntryRestricted{
+	bundle.Accounts = append(bundle.Accounts, stellar1.BundleEntry{
 		AccountID:          accountID,
 		Mode:               stellar1.AccountMode_USER,
 		IsPrimary:          makePrimary,
@@ -750,7 +750,7 @@ func AddAccount(bundle *stellar1.BundleRestricted, secretKey stellar1.SecretKey,
 
 // CreateNewAccount generates a Stellar key pair and adds it to the
 // bundle. Mutates `bundle`.
-func CreateNewAccount(bundle *stellar1.BundleRestricted, name string, makePrimary bool) (pub stellar1.AccountID, err error) {
+func CreateNewAccount(bundle *stellar1.Bundle, name string, makePrimary bool) (pub stellar1.AccountID, err error) {
 	accountID, masterKey, err := randomStellarKeypair()
 	if err != nil {
 		return pub, err

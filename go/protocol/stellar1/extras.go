@@ -118,12 +118,12 @@ func (s SecretKey) SecureNoLogString() string {
 	return string(s)
 }
 
-// CheckInvariants checks that the BundleRestricted satisfies
+// CheckInvariants checks that the Bundle satisfies
 // 1. No duplicate account IDs
 // 2. Exactly one primary account
 // 3. Non-negative revision numbers
 // 4. Account Bundle maps to Accounts
-func (r BundleRestricted) CheckInvariants() error {
+func (r Bundle) CheckInvariants() error {
 	accountIDs := make(map[AccountID]bool)
 	var foundPrimary bool
 	for _, entry := range r.Accounts {
@@ -159,22 +159,22 @@ func (r BundleRestricted) CheckInvariants() error {
 	return nil
 }
 
-func (s BundleRestricted) PrimaryAccount() (BundleEntryRestricted, error) {
+func (s Bundle) PrimaryAccount() (BundleEntry, error) {
 	for _, entry := range s.Accounts {
 		if entry.IsPrimary {
 			return entry, nil
 		}
 	}
-	return BundleEntryRestricted{}, errors.New("primary stellar account not found")
+	return BundleEntry{}, errors.New("primary stellar account not found")
 }
 
-func (s BundleRestricted) Lookup(acctID AccountID) (BundleEntryRestricted, error) {
+func (s Bundle) Lookup(acctID AccountID) (BundleEntry, error) {
 	for _, entry := range s.Accounts {
 		if entry.AccountID == acctID {
 			return entry, nil
 		}
 	}
-	return BundleEntryRestricted{}, errors.New("stellar account not found")
+	return BundleEntry{}, errors.New("stellar account not found")
 }
 
 // Eq compares assets strictly.

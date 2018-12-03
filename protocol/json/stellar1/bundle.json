@@ -371,7 +371,7 @@
     },
     {
       "type": "record",
-      "name": "BundleRestricted",
+      "name": "Bundle",
       "fields": [
         {
           "type": "BundleRevision",
@@ -388,7 +388,7 @@
         {
           "type": {
             "type": "array",
-            "items": "BundleEntryRestricted"
+            "items": "BundleEntry"
           },
           "name": "accounts"
         },
@@ -404,7 +404,7 @@
     },
     {
       "type": "record",
-      "name": "BundleEntryRestricted",
+      "name": "BundleEntry",
       "fields": [
         {
           "type": "AccountID",

@@ -261,22 +261,22 @@ func OwnAccount(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.
 	return false, false, nil
 }
 
-func lookupSenderEntry(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (stellar1.BundleEntryRestricted, stellar1.AccountBundle, error) {
+func lookupSenderEntry(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (stellar1.BundleEntry, stellar1.AccountBundle, error) {
 	if accountID == "" {
 		bundle, _, err := remote.FetchSecretlessBundle(ctx, g)
 		if err != nil {
-			return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, err
+			return stellar1.BundleEntry{}, stellar1.AccountBundle{}, err
 		}
 		entry, err := bundle.PrimaryAccount()
 		if err != nil {
-			return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, err
+			return stellar1.BundleEntry{}, stellar1.AccountBundle{}, err
 		}
 		accountID = entry.AccountID
 	}
 
 	bundle, _, err := remote.FetchAccountBundle(ctx, g, accountID)
 	if err != nil {
-		return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, err
+		return stellar1.BundleEntry{}, stellar1.AccountBundle{}, err
 	}
 
 	for _, entry := range bundle.Accounts {
@@ -285,19 +285,19 @@ func lookupSenderEntry(ctx context.Context, g *libkb.GlobalContext, accountID st
 		}
 	}
 
-	return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, libkb.NotFoundError{Msg: fmt.Sprintf("Sender account not found")}
+	return stellar1.BundleEntry{}, stellar1.AccountBundle{}, libkb.NotFoundError{Msg: fmt.Sprintf("Sender account not found")}
 }
 
-func LookupSender(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (stellar1.BundleEntryRestricted, stellar1.AccountBundle, error) {
+func LookupSender(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (stellar1.BundleEntry, stellar1.AccountBundle, error) {
 	entry, ab, err := lookupSenderEntry(ctx, g, accountID)
 	if err != nil {
-		return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, err
+		return stellar1.BundleEntry{}, stellar1.AccountBundle{}, err
 	}
 	if len(ab.Signers) == 0 {
-		return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, errors.New("no signer for bundle")
+		return stellar1.BundleEntry{}, stellar1.AccountBundle{}, errors.New("no signer for bundle")
 	}
 	if len(ab.Signers) > 1 {
-		return stellar1.BundleEntryRestricted{}, stellar1.AccountBundle{}, errors.New("only single signer supported")
+		return stellar1.BundleEntry{}, stellar1.AccountBundle{}, errors.New("only single signer supported")
 	}
 
 	return entry, ab, nil
