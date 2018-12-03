@@ -40,7 +40,7 @@ protocol bundle {
   }
 
   variant BundleSecretVersioned switch (BundleVersion version) {
-    case V1 : BundleSecretV1;
+    case V1 : BundleSecretUnsupported;
     case V2 : BundleSecretV2;
     case V3 : BundleSecretUnsupported;
     case V4 : BundleSecretUnsupported;
@@ -54,35 +54,6 @@ protocol bundle {
 
   // Note: there is no versioned form of BundleVisible because it is versioned
   // by BundleSecret's version field.
-
-  // --------------------------------------------------------------------------
-  // V1
-  // --------------------------------------------------------------------------
-
-  record BundleVisibleV1 {
-    BundleRevision revision;
-    Hash prev; // SHA256 of previous msgpack(EncryptedBundle)
-    array<BundleVisibleEntryV1> accounts;
-  }
-
-  record BundleSecretV1 {
-    Hash visibleHash; // SHA256 of msgpack(BundleVisibleV1)
-    array<BundleSecretEntryV1> accounts;
-  }
-
-  // V1 Server-visible attributes of an account.
-  record BundleVisibleEntryV1 {
-    AccountID accountID;
-    AccountMode mode;
-    boolean isPrimary;        // whether this is the primary account (public)
-  }
-
-  // V1 Secret attributes of an account.
-  record BundleSecretEntryV1 {
-    AccountID accountID;
-    array<SecretKey> signers;
-    string name;
-  }
 
   // --------------------------------------------------------------------------
   // V2

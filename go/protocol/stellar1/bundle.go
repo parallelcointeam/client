@@ -117,7 +117,7 @@ func (e BundleVersion) String() string {
 
 type BundleSecretVersioned struct {
 	Version__ BundleVersion            `codec:"version" json:"version"`
-	V1__      *BundleSecretV1          `codec:"v1,omitempty" json:"v1,omitempty"`
+	V1__      *BundleSecretUnsupported `codec:"v1,omitempty" json:"v1,omitempty"`
 	V2__      *BundleSecretV2          `codec:"v2,omitempty" json:"v2,omitempty"`
 	V3__      *BundleSecretUnsupported `codec:"v3,omitempty" json:"v3,omitempty"`
 	V4__      *BundleSecretUnsupported `codec:"v4,omitempty" json:"v4,omitempty"`
@@ -185,7 +185,7 @@ func (o *BundleSecretVersioned) Version() (ret BundleVersion, err error) {
 	return o.Version__, nil
 }
 
-func (o BundleSecretVersioned) V1() (res BundleSecretV1) {
+func (o BundleSecretVersioned) V1() (res BundleSecretUnsupported) {
 	if o.Version__ != BundleVersion_V1 {
 		panic("wrong case accessed")
 	}
@@ -285,7 +285,7 @@ func (o BundleSecretVersioned) V10() (res BundleSecretUnsupported) {
 	return *o.V10__
 }
 
-func NewBundleSecretVersionedWithV1(v BundleSecretV1) BundleSecretVersioned {
+func NewBundleSecretVersionedWithV1(v BundleSecretUnsupported) BundleSecretVersioned {
 	return BundleSecretVersioned{
 		Version__: BundleVersion_V1,
 		V1__:      &v,
@@ -358,7 +358,7 @@ func NewBundleSecretVersionedWithV10(v BundleSecretUnsupported) BundleSecretVers
 func (o BundleSecretVersioned) DeepCopy() BundleSecretVersioned {
 	return BundleSecretVersioned{
 		Version__: o.Version__.DeepCopy(),
-		V1__: (func(x *BundleSecretV1) *BundleSecretV1 {
+		V1__: (func(x *BundleSecretUnsupported) *BundleSecretUnsupported {
 			if x == nil {
 				return nil
 			}
@@ -428,90 +428,6 @@ func (o BundleSecretVersioned) DeepCopy() BundleSecretVersioned {
 			tmp := (*x).DeepCopy()
 			return &tmp
 		})(o.V10__),
-	}
-}
-
-type BundleVisibleV1 struct {
-	Revision BundleRevision         `codec:"revision" json:"revision"`
-	Prev     Hash                   `codec:"prev" json:"prev"`
-	Accounts []BundleVisibleEntryV1 `codec:"accounts" json:"accounts"`
-}
-
-func (o BundleVisibleV1) DeepCopy() BundleVisibleV1 {
-	return BundleVisibleV1{
-		Revision: o.Revision.DeepCopy(),
-		Prev:     o.Prev.DeepCopy(),
-		Accounts: (func(x []BundleVisibleEntryV1) []BundleVisibleEntryV1 {
-			if x == nil {
-				return nil
-			}
-			ret := make([]BundleVisibleEntryV1, len(x))
-			for i, v := range x {
-				vCopy := v.DeepCopy()
-				ret[i] = vCopy
-			}
-			return ret
-		})(o.Accounts),
-	}
-}
-
-type BundleSecretV1 struct {
-	VisibleHash Hash                  `codec:"visibleHash" json:"visibleHash"`
-	Accounts    []BundleSecretEntryV1 `codec:"accounts" json:"accounts"`
-}
-
-func (o BundleSecretV1) DeepCopy() BundleSecretV1 {
-	return BundleSecretV1{
-		VisibleHash: o.VisibleHash.DeepCopy(),
-		Accounts: (func(x []BundleSecretEntryV1) []BundleSecretEntryV1 {
-			if x == nil {
-				return nil
-			}
-			ret := make([]BundleSecretEntryV1, len(x))
-			for i, v := range x {
-				vCopy := v.DeepCopy()
-				ret[i] = vCopy
-			}
-			return ret
-		})(o.Accounts),
-	}
-}
-
-type BundleVisibleEntryV1 struct {
-	AccountID AccountID   `codec:"accountID" json:"accountID"`
-	Mode      AccountMode `codec:"mode" json:"mode"`
-	IsPrimary bool        `codec:"isPrimary" json:"isPrimary"`
-}
-
-func (o BundleVisibleEntryV1) DeepCopy() BundleVisibleEntryV1 {
-	return BundleVisibleEntryV1{
-		AccountID: o.AccountID.DeepCopy(),
-		Mode:      o.Mode.DeepCopy(),
-		IsPrimary: o.IsPrimary,
-	}
-}
-
-type BundleSecretEntryV1 struct {
-	AccountID AccountID   `codec:"accountID" json:"accountID"`
-	Signers   []SecretKey `codec:"signers" json:"signers"`
-	Name      string      `codec:"name" json:"name"`
-}
-
-func (o BundleSecretEntryV1) DeepCopy() BundleSecretEntryV1 {
-	return BundleSecretEntryV1{
-		AccountID: o.AccountID.DeepCopy(),
-		Signers: (func(x []SecretKey) []SecretKey {
-			if x == nil {
-				return nil
-			}
-			ret := make([]SecretKey, len(x))
-			for i, v := range x {
-				vCopy := v.DeepCopy()
-				ret[i] = vCopy
-			}
-			return ret
-		})(o.Signers),
-		Name: o.Name,
 	}
 }
 
