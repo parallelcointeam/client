@@ -56,7 +56,7 @@ func (b BoxedEncoded) toBundleEncodedB64() BundleEncoded {
 type BundleEncoded struct {
 	EncParent           string                        `json:"encrypted_parent"` // base64 msgpacked Enc
 	VisParent           string                        `json:"visible_parent"`
-	FormatVersionParent stellar1.AccountBundleVersion `json:"version_parent"`
+	FormatVersionParent stellar1.BundleVersion        `json:"version_parent"`
 	AcctBundles         map[stellar1.AccountID]string `json:"account_bundles"`
 }
 
