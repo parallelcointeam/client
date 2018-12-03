@@ -9,7 +9,7 @@ import (
 	"github.com/keybase/client/go/libkb"
 	"github.com/keybase/client/go/protocol/keybase1"
 	"github.com/keybase/client/go/protocol/stellar1"
-	"github.com/keybase/client/go/stellar/acctbundle"
+	"github.com/keybase/client/go/stellar/bundle"
 )
 
 type shouldCreateRes struct {
@@ -46,20 +46,20 @@ func acctBundlesEnabled(m libkb.MetaContext) bool {
 	return enabled
 }
 
-func buildChainLinkPayload(m libkb.MetaContext, bundle stellar1.Bundle, me *libkb.User, pukGen keybase1.PerUserKeyGeneration, pukSeed libkb.PerUserKeySeed, deviceSigKey libkb.GenericKey) (*libkb.JSONPayload, error) {
-	err := bundle.CheckInvariants()
+func buildChainLinkPayload(m libkb.MetaContext, b stellar1.Bundle, me *libkb.User, pukGen keybase1.PerUserKeyGeneration, pukSeed libkb.PerUserKeySeed, deviceSigKey libkb.GenericKey) (*libkb.JSONPayload, error) {
+	err := b.CheckInvariants()
 	if err != nil {
 		return nil, err
 	}
-	if len(bundle.Accounts) < 1 {
+	if len(b.Accounts) < 1 {
 		return nil, errors.New("stellar bundle has no accounts")
 	}
 	// Find the new primary account for the chain link.
-	stellarAccount, err := bundle.PrimaryAccount()
+	stellarAccount, err := b.PrimaryAccount()
 	if err != nil {
 		return nil, err
 	}
-	stellarAccountBundle, ok := bundle.AccountBundles[stellarAccount.AccountID]
+	stellarAccountBundle, ok := b.AccountBundles[stellarAccount.AccountID]
 	if !ok {
 		return nil, errors.New("stellar primary account has no account bundle")
 	}
@@ -69,9 +69,9 @@ func buildChainLinkPayload(m libkb.MetaContext, bundle stellar1.Bundle, me *libk
 	if !stellarAccount.IsPrimary {
 		return nil, errors.New("initial stellar account is not primary")
 	}
-	m.CDebugf("Stellar.PostWithChainLink: revision:%v accountID:%v pukGen:%v", bundle.Revision, stellarAccount.AccountID, pukGen)
+	m.CDebugf("Stellar.PostWithChainLink: revision:%v accountID:%v pukGen:%v", b.Revision, stellarAccount.AccountID, pukGen)
 
-	boxed, err := acctbundle.BoxAndEncode(&bundle, pukGen, pukSeed)
+	boxed, err := bundle.BoxAndEncode(&b, pukGen, pukSeed)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.Bund
 	if err != nil {
 		return err
 	}
-	boxed, err := acctbundle.BoxAndEncode(&clearBundle, pukGen, pukSeed)
+	boxed, err := bundle.BoxAndEncode(&clearBundle, pukGen, pukSeed)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func Post(ctx context.Context, g *libkb.GlobalContext, clearBundle stellar1.Bund
 	return err
 }
 
-func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountID *stellar1.AccountID) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
+func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountID *stellar1.AccountID) (b *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.fetchBundleForAccount", func() error { return err })()
 
 	fetchArgs := libkb.HTTPArgs{}
@@ -199,25 +199,26 @@ func fetchBundleForAccount(ctx context.Context, g *libkb.GlobalContext, accountI
 	}
 	m := libkb.NewMetaContext(ctx, g)
 	finder := &pukFinder{}
-	acctBundle, _, pukGen, err = acctbundle.DecodeAndUnbox(m, finder, apiRes.BundleEncoded)
-	return acctBundle, pukGen, err
+	b, _, pukGen, err = bundle.DecodeAndUnbox(m, finder, apiRes.BundleEncoded)
+	return b, pukGen, err
 }
 
 // FetchSecretlessBundle gets an account bundle from the server and decrypts it
 // but without any specified AccountID and therefore no secrets (signers).
 // This method is safe to call by any of a user's devices even if one or more of
 // the accounts is marked as being mobile only.
-func FetchSecretlessBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchSecretlessBundle(ctx context.Context, g *libkb.GlobalContext) (bundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchSecretlessBundle", func() error { return err })()
 
 	return fetchBundleForAccount(ctx, g, nil)
 }
 
-// FetchAccountBundle gets an account bundle from the server and decrypts it.
-// this method will bubble up an error if it's called by a Desktop device for
+// FetchAccountBundle gets a bundle from the server with all of the accounts
+// in it, but it will only have the secrets for specified accountID.
+// This method will bubble up an error if it's called by a Desktop device for
 // an account that is mobile only. If you don't need the secrets, use
 // FetchSecretlessBundle instead.
-func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) (bundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchAccountBundle", func() error { return err })()
 
 	return fetchBundleForAccount(ctx, g, &accountID)
@@ -227,10 +228,10 @@ func FetchAccountBundle(ctx context.Context, g *libkb.GlobalContext, accountID s
 // to get the signers for each of them and build a single, full bundle with all
 // of the information. This will error from any device that does not have access
 // to all of the accounts (e.g. a desktop after mobile-only)
-func FetchWholeBundle(ctx context.Context, g *libkb.GlobalContext) (acctBundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
+func FetchWholeBundle(ctx context.Context, g *libkb.GlobalContext) (bundle *stellar1.Bundle, pukGen keybase1.PerUserKeyGeneration, err error) {
 	defer g.CTraceTimed(ctx, "Stellar.FetchWholeBundle", func() error { return err })()
 
-	bundle, pukGen, err := FetchSecretlessBundle(ctx, g)
+	bundle, pukGen, err = FetchSecretlessBundle(ctx, g)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -264,7 +265,7 @@ func getLatestPuk(ctx context.Context, g *libkb.GlobalContext) (pukGen keybase1.
 
 type fetchAcctRes struct {
 	libkb.AppStatusEmbed
-	acctbundle.BundleEncoded
+	bundle.BundleEncoded
 }
 
 type seqnoResult struct {
@@ -702,19 +703,19 @@ func IsAccountMobileOnly(ctx context.Context, g *libkb.GlobalContext, accountID 
 // SetAccountMobileOnly will fetch the account bundle and flip the mobile-only switch,
 // then send the new account bundle revision to the server.
 func SetAccountMobileOnly(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) error {
-	bundle, _, err := FetchAccountBundle(ctx, g, accountID)
+	b, _, err := FetchAccountBundle(ctx, g, accountID)
 	if err != nil {
 		return err
 	}
-	err = acctbundle.MakeMobileOnly(bundle, accountID)
-	if err == acctbundle.ErrNoChangeNecessary {
+	err = bundle.MakeMobileOnly(b, accountID)
+	if err == bundle.ErrNoChangeNecessary {
 		g.Log.CDebugf(ctx, "SetAccountMobileOnly account %s is already mobile-only", accountID)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
+	nextBundle := bundle.AdvanceAccounts(*b, []stellar1.AccountID{accountID})
 	if err := Post(ctx, g, nextBundle); err != nil {
 		g.Log.CDebugf(ctx, "SetAccountMobileOnly Post error: %s", err)
 		return err
@@ -727,19 +728,19 @@ func SetAccountMobileOnly(ctx context.Context, g *libkb.GlobalContext, accountID
 // (so that any device can get the account secret keys) then send the new account bundle
 // to the server.
 func MakeAccountAllDevices(ctx context.Context, g *libkb.GlobalContext, accountID stellar1.AccountID) error {
-	bundle, _, err := FetchAccountBundle(ctx, g, accountID)
+	b, _, err := FetchAccountBundle(ctx, g, accountID)
 	if err != nil {
 		return err
 	}
-	err = acctbundle.MakeAllDevices(bundle, accountID)
-	if err == acctbundle.ErrNoChangeNecessary {
+	err = bundle.MakeAllDevices(b, accountID)
+	if err == bundle.ErrNoChangeNecessary {
 		g.Log.CDebugf(ctx, "MakeAccountAllDevices account %s is already in all-device mode", accountID)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
+	nextBundle := bundle.AdvanceAccounts(*b, []stellar1.AccountID{accountID})
 	if err := Post(ctx, g, nextBundle); err != nil {
 		g.Log.CDebugf(ctx, "MakeAccountAllDevices Post error: %s", err)
 		return err
@@ -775,7 +776,7 @@ func LookupUnverified(ctx context.Context, g *libkb.GlobalContext, accountID ste
 	return ret, nil
 }
 
-// pukFinder implements the acctbundle.PukFinder interface.
+// pukFinder implements the bundle.PukFinder interface.
 type pukFinder struct{}
 
 func (p *pukFinder) SeedByGeneration(m libkb.MetaContext, generation keybase1.PerUserKeyGeneration) (libkb.PerUserKeySeed, error) {

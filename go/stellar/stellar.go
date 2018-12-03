@@ -16,7 +16,7 @@ import (
 	"github.com/keybase/client/go/protocol/gregor1"
 	"github.com/keybase/client/go/protocol/keybase1"
 	"github.com/keybase/client/go/protocol/stellar1"
-	"github.com/keybase/client/go/stellar/acctbundle"
+	"github.com/keybase/client/go/stellar/bundle"
 	"github.com/keybase/client/go/stellar/relays"
 	"github.com/keybase/client/go/stellar/remote"
 	"github.com/keybase/client/go/stellar/stellarcommon"
@@ -37,7 +37,7 @@ func CreateWallet(ctx context.Context, g *libkb.GlobalContext) (created bool, er
 		return false, fmt.Errorf("could not get logged-in username")
 	}
 	perUserKeyUpgradeSoft(ctx, g, "create-wallet")
-	clearBundle, err := acctbundle.NewInitial(fmt.Sprintf("%v's account", loggedInUsername))
+	clearBundle, err := bundle.NewInitial(fmt.Sprintf("%v's account", loggedInUsername))
 	if err != nil {
 		return false, err
 	}
@@ -150,7 +150,7 @@ func Upkeep(ctx context.Context, g *libkb.GlobalContext) (err error) {
 		g.Log.CDebugf(ctx, "Stellar.Upkeep: early out prevPukGen:%v < pukGen:%v", prevPukGen, pukGen)
 		return nil
 	}
-	nextBundle := acctbundle.AdvanceAll(*prevBundle)
+	nextBundle := bundle.AdvanceAll(*prevBundle)
 	return remote.Post(ctx, g, nextBundle)
 }
 
@@ -159,8 +159,8 @@ func ImportSecretKey(ctx context.Context, g *libkb.GlobalContext, secretKey stel
 	if err != nil {
 		return err
 	}
-	nextBundle := acctbundle.AdvanceBundle(*prevBundle)
-	err = acctbundle.AddAccount(&nextBundle, secretKey, accountName, makePrimary)
+	nextBundle := bundle.AdvanceBundle(*prevBundle)
+	err = bundle.AddAccount(&nextBundle, secretKey, accountName, makePrimary)
 	if err != nil {
 		return err
 	}
@@ -1237,15 +1237,15 @@ func ChangeAccountName(m libkb.MetaContext, accountID stellar1.AccountID, newNam
 	if runes > AccountNameMaxRunes {
 		return fmt.Errorf("account name can be %v characters at the longest but was %v", AccountNameMaxRunes, runes)
 	}
-	bundle, _, err := remote.FetchSecretlessBundle(m.Ctx(), m.G())
+	b, _, err := remote.FetchSecretlessBundle(m.Ctx(), m.G())
 	if err != nil {
 		return err
 	}
 	var found bool
-	for i, acc := range bundle.Accounts {
+	for i, acc := range b.Accounts {
 		if acc.AccountID.Eq(accountID) {
 			// Change Name in place to modify Account struct.
-			bundle.Accounts[i].Name = newName
+			b.Accounts[i].Name = newName
 			found = true
 		} else if acc.Name == newName {
 			return fmt.Errorf("you already have an account with that name")
@@ -1254,7 +1254,7 @@ func ChangeAccountName(m libkb.MetaContext, accountID stellar1.AccountID, newNam
 	if !found {
 		return fmt.Errorf("account not found: %v", accountID)
 	}
-	nextBundle := acctbundle.AdvanceBundle(*bundle)
+	nextBundle := bundle.AdvanceBundle(*b)
 	return remote.Post(m.Ctx(), m.G(), nextBundle)
 }
 
@@ -1262,21 +1262,21 @@ func SetAccountAsPrimary(m libkb.MetaContext, accountID stellar1.AccountID) (err
 	if accountID.IsNil() {
 		return errors.New("passed empty AccountID")
 	}
-	bundle, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
+	b, _, err := remote.FetchAccountBundle(m.Ctx(), m.G(), accountID)
 	if err != nil {
 		return err
 	}
 	var foundAccID, foundPrimary bool
-	for i, acc := range bundle.Accounts {
+	for i, acc := range b.Accounts {
 		if acc.AccountID.Eq(accountID) {
 			if acc.IsPrimary {
 				// Nothing to do.
 				return nil
 			}
-			bundle.Accounts[i].IsPrimary = true
+			b.Accounts[i].IsPrimary = true
 			foundAccID = true
 		} else if acc.IsPrimary {
-			bundle.Accounts[i].IsPrimary = false
+			b.Accounts[i].IsPrimary = false
 			foundPrimary = true
 		}
 
@@ -1287,7 +1287,7 @@ func SetAccountAsPrimary(m libkb.MetaContext, accountID stellar1.AccountID) (err
 	if !foundAccID {
 		return fmt.Errorf("account not found: %v", accountID)
 	}
-	nextBundle := acctbundle.AdvanceAccounts(*bundle, []stellar1.AccountID{accountID})
+	nextBundle := bundle.AdvanceAccounts(*b, []stellar1.AccountID{accountID})
 	return remote.PostWithChainlink(m.Ctx(), m.G(), nextBundle)
 }
 
@@ -1300,7 +1300,7 @@ func DeleteAccount(m libkb.MetaContext, accountID stellar1.AccountID) error {
 		return err
 	}
 
-	nextBundle := acctbundle.AdvanceBundle(*prevBundle)
+	nextBundle := bundle.AdvanceBundle(*prevBundle)
 	var found bool
 	for i, acc := range nextBundle.Accounts {
 		if acc.AccountID.Eq(accountID) {
@@ -1367,8 +1367,8 @@ func CreateNewAccount(m libkb.MetaContext, accountName string) (ret stellar1.Acc
 	if err != nil {
 		return ret, err
 	}
-	nextBundle := acctbundle.AdvanceBundle(*prevBundle)
-	ret, err = acctbundle.CreateNewAccount(&nextBundle, accountName, false /* makePrimary */)
+	nextBundle := bundle.AdvanceBundle(*prevBundle)
+	ret, err = bundle.CreateNewAccount(&nextBundle, accountName, false /* makePrimary */)
 	if err != nil {
 		return ret, err
 	}

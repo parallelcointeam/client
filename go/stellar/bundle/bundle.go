@@ -1,4 +1,4 @@
-package acctbundle
+package bundle
 
 import (
 	"crypto/hmac"
@@ -253,8 +253,8 @@ func accountBoxAndEncode(accountID stellar1.AccountID, accountBundle stellar1.Ac
 // actually necessary.
 var ErrNoChangeNecessary = errors.New("no account mode change is necessary")
 
-// MakeMobileOnly transforms a stellar1.AccountBundle into a mobile-only
-// bundle.  This advances the revision.  If it's already mobile-only,
+// MakeMobileOnly transforms an account in a stellar1.Bundle into a mobile-only
+// account. This advances the revision of the Bundle.  If it's already mobile-only,
 // this function will return ErrNoChangeNecessary.
 func MakeMobileOnly(a *stellar1.Bundle, accountID stellar1.AccountID) error {
 	var found bool
@@ -275,8 +275,8 @@ func MakeMobileOnly(a *stellar1.Bundle, accountID stellar1.AccountID) error {
 	return nil
 }
 
-// MakeAllDevices transforms a stellar1.AccountBundle into an all-device
-// bundle.  This advances the revision.  If it's already all-device,
+// MakeAllDevices transforms an account in a stellar1.Bundle into an all-devices
+// account. This advances the revision of the Bundle.  If it's already all-devices,
 // this function will return ErrNoChangeNecessary.
 func MakeAllDevices(a *stellar1.Bundle, accountID stellar1.AccountID) error {
 	var found bool
@@ -597,7 +597,7 @@ type WithSecret struct {
 }
 
 // AccountWithSecret finds an account in bundle and its associated secret
-// and extracts them into a convenience type acctbundle.WithSecret.
+// and extracts them into a convenience type bundle.WithSecret.
 // It will return libkb.NotFoundError if it can't find the secret or the
 // account in the bundle.
 func AccountWithSecret(bundle *stellar1.Bundle, accountID stellar1.AccountID) (*WithSecret, error) {

@@ -14,7 +14,7 @@ import (
 	"github.com/keybase/client/go/protocol/keybase1"
 	"github.com/keybase/client/go/protocol/stellar1"
 	"github.com/keybase/client/go/stellar"
-	"github.com/keybase/client/go/stellar/acctbundle"
+	"github.com/keybase/client/go/stellar/bundle"
 	"github.com/keybase/client/go/stellar/relays"
 	"github.com/keybase/client/go/stellar/remote"
 	"github.com/keybase/client/go/stellar/stellarcommon"
@@ -856,7 +856,7 @@ func TestRequestPaymentOutsideCurrency(t *testing.T) {
 	require.Equal(t, "$8.20 USD", details.AmountDescription)
 }
 
-func TestAccountBundleFlows(t *testing.T) {
+func TestBundleFlows(t *testing.T) {
 	tcs, cleanup := setupNTests(t, 1)
 	defer cleanup()
 	ctx := context.Background()
@@ -1048,10 +1048,10 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	rev2AcctBundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
+	rev2Bundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleRevision(2), rev2AcctBundle.Revision)
-	// NOTE: we're using this rev2AcctBundle later...
+	require.Equal(t, stellar1.BundleRevision(2), rev2Bundle.Revision)
+	// NOTE: we're using this rev2Bundle later...
 
 	err = tc.Srv.SetAccountMobileOnlyLocal(ctx, stellar1.SetAccountMobileOnlyLocalArg{
 		AccountID: a1,
@@ -1077,26 +1077,26 @@ func TestMakeAccountMobileOnlyOnDesktop(t *testing.T) {
 
 	primaryAcctName := fmt.Sprintf("%s's account", tc.Fu.Username)
 	// can pull a secretless bundle though (not specifying an accountID)
-	rev3AcctBundle, _, err := remote.FetchSecretlessBundle(ctx, g)
+	rev3Bundle, _, err := remote.FetchSecretlessBundle(ctx, g)
 	require.NoError(t, err)
-	require.Equal(t, stellar1.BundleRevision(3), rev3AcctBundle.Revision)
-	accountID0 := rev3AcctBundle.Accounts[0].AccountID
-	require.Equal(t, primaryAcctName, rev3AcctBundle.Accounts[0].Name)
-	require.True(t, rev3AcctBundle.Accounts[0].IsPrimary)
-	require.Len(t, rev3AcctBundle.AccountBundles[accountID0].Signers, 0)
-	accountID1 := rev3AcctBundle.Accounts[1].AccountID
-	require.Equal(t, stellar1.AccountMode_MOBILE, rev3AcctBundle.Accounts[1].Mode)
-	require.False(t, rev3AcctBundle.Accounts[1].IsPrimary)
-	require.Len(t, rev3AcctBundle.AccountBundles[accountID1].Signers, 0)
-	require.Equal(t, "vault", rev3AcctBundle.Accounts[1].Name)
+	require.Equal(t, stellar1.BundleRevision(3), rev3Bundle.Revision)
+	accountID0 := rev3Bundle.Accounts[0].AccountID
+	require.Equal(t, primaryAcctName, rev3Bundle.Accounts[0].Name)
+	require.True(t, rev3Bundle.Accounts[0].IsPrimary)
+	require.Len(t, rev3Bundle.AccountBundles[accountID0].Signers, 0)
+	accountID1 := rev3Bundle.Accounts[1].AccountID
+	require.Equal(t, stellar1.AccountMode_MOBILE, rev3Bundle.Accounts[1].Mode)
+	require.False(t, rev3Bundle.Accounts[1].IsPrimary)
+	require.Len(t, rev3Bundle.AccountBundles[accountID1].Signers, 0)
+	require.Equal(t, "vault", rev3Bundle.Accounts[1].Name)
 
 	// try posting an old bundle we got previously
-	err = remote.Post(ctx, g, *rev2AcctBundle)
+	err = remote.Post(ctx, g, *rev2Bundle)
 	require.Error(t, err)
 
 	// tinker with it
-	rev2AcctBundle.Revision = 4
-	err = remote.Post(ctx, g, *rev2AcctBundle)
+	rev2Bundle.Revision = 4
+	err = remote.Post(ctx, g, *rev2Bundle)
 	require.Error(t, err)
 }
 
@@ -1120,10 +1120,10 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 
 	checker := newAcctBundleChecker(a1, s1)
 
-	acctBundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
+	bundle, _, err := remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	t.Logf("acctBundle: %+v", acctBundle)
-	checker.assertBundle(t, acctBundle, 2, 1, stellar1.AccountMode_USER)
+	t.Logf("bundle: %+v", bundle)
+	checker.assertBundle(t, bundle, 2, 1, stellar1.AccountMode_USER)
 
 	err = tc.Srv.SetAccountMobileOnlyLocal(ctx, stellar1.SetAccountMobileOnlyLocalArg{
 		AccountID: a1,
@@ -1142,26 +1142,26 @@ func TestMakeAccountMobileOnlyOnRecentMobile(t *testing.T) {
 	// this will make the device older on the server
 	makeActiveDeviceOlder(t, g)
 	// so now the fetch will work
-	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	bundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	checker.assertBundle(t, acctBundle, 3, 2, stellar1.AccountMode_MOBILE)
+	checker.assertBundle(t, bundle, 3, 2, stellar1.AccountMode_MOBILE)
 
 	// this should not post a new bundle
 	err = tc.Srv.SetAccountMobileOnlyLocal(ctx, stellar1.SetAccountMobileOnlyLocalArg{
 		AccountID: a1,
 	})
 	require.NoError(t, err)
-	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	bundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	checker.assertBundle(t, acctBundle, 3, 2, stellar1.AccountMode_MOBILE)
+	checker.assertBundle(t, bundle, 3, 2, stellar1.AccountMode_MOBILE)
 
 	// make it accessible on all devices
 	err = remote.MakeAccountAllDevices(ctx, g, a1)
 	require.NoError(t, err)
 
-	acctBundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
+	bundle, _, err = remote.FetchAccountBundle(ctx, g, a1)
 	require.NoError(t, err)
-	checker.assertBundle(t, acctBundle, 4, 3, stellar1.AccountMode_USER)
+	checker.assertBundle(t, bundle, 4, 3, stellar1.AccountMode_USER)
 }
 
 func makeActiveDeviceOlder(t *testing.T, g *libkb.GlobalContext) {
@@ -1190,11 +1190,11 @@ func newAcctBundleChecker(a stellar1.AccountID, s stellar1.SecretKey) *acctBundl
 	}
 }
 
-func (a *acctBundleChecker) assertBundle(t *testing.T, bundle *stellar1.Bundle, revisionParent, revisionAccount stellar1.BundleRevision, mode stellar1.AccountMode) {
-	require.NotNil(t, bundle)
-	require.Equal(t, revisionParent, bundle.Revision)
-	require.Len(t, bundle.AccountBundles, 1)
-	secret, err := acctbundle.AccountWithSecret(bundle, a.accountID)
+func (a *acctBundleChecker) assertBundle(t *testing.T, b *stellar1.Bundle, revisionParent, revisionAccount stellar1.BundleRevision, mode stellar1.AccountMode) {
+	require.NotNil(t, b)
+	require.Equal(t, revisionParent, b.Revision)
+	require.Len(t, b.AccountBundles, 1)
+	secret, err := bundle.AccountWithSecret(b, a.accountID)
 	require.NoError(t, err)
 	require.NotNil(t, secret)
 	require.Equal(t, mode, secret.Mode)
@@ -1202,8 +1202,8 @@ func (a *acctBundleChecker) assertBundle(t *testing.T, bundle *stellar1.Bundle, 
 	require.Len(t, secret.Signers, 1)
 	require.Equal(t, a.secretKey, secret.Signers[0])
 	require.Equal(t, revisionAccount, secret.Revision)
-	require.NotEmpty(t, bundle.Prev)
-	require.NotEmpty(t, bundle.OwnHash)
+	require.NotEmpty(t, b.Prev)
+	require.NotEmpty(t, b.OwnHash)
 }
 
 type TestContext struct {

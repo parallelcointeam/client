@@ -1,4 +1,4 @@
-package acctbundle
+package bundle
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestInitialAccountBundle makes sure we can make a brand-new account bundle
+// TestInitialBundle makes sure we can make a brand-new account bundle
 // with a new random secret.
 func TestInitialBundle(t *testing.T) {
 	b, err := NewInitial("hello")
