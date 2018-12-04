@@ -122,7 +122,8 @@ func (s SecretKey) SecureNoLogString() string {
 // 1. No duplicate account IDs
 // 2. Exactly one primary account
 // 3. Non-negative revision numbers
-// 4. Account Bundle maps to Accounts
+// 4. Account Bundle accountIDs are consistent
+// 5. every account in AccountBundles is also in Accounts
 func (r Bundle) CheckInvariants() error {
 	accountIDs := make(map[AccountID]bool)
 	var foundPrimary bool
@@ -154,6 +155,15 @@ func (r Bundle) CheckInvariants() error {
 	for accID, accBundle := range r.AccountBundles {
 		if accID != accBundle.AccountID {
 			return fmt.Errorf("account ID mismatch in bundle for %v", accID)
+		}
+		var AccountBundleInAccounts bool
+		for _, accountListAccount := range r.Accounts {
+			if accountListAccount.AccountID == accID {
+				AccountBundleInAccounts = true
+			}
+		}
+		if !AccountBundleInAccounts {
+			return fmt.Errorf("account in AccountBundles not in Accounts %v", accID)
 		}
 	}
 	return nil

@@ -234,7 +234,9 @@ func DecodeAndUnbox(m libkb.MetaContext, finder PukFinder, encodedBundle BundleE
 			parent.AccountBundles[parentEntry.AccountID] = *acctBundle
 		}
 	}
-
+	if err = parent.CheckInvariants(); err != nil {
+		return nil, 0, 0, err
+	}
 	return parent, parentVersion, encBundle.Gen, nil
 }
 
