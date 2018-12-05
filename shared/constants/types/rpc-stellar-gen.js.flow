@@ -116,7 +116,7 @@ export type MessageTypes = {|
     outParam: void,
   |},
   'stellar.1.local.sendPaymentLocal': {|
-    inParam: $ReadOnly<{|bid: BuildPaymentID, bypassBid: Boolean, from: AccountID, to: String, toIsAccountID: Boolean, amount: String, asset: Asset, worthAmount: String, worthCurrency?: ?OutsideCurrencyCode, secretNote: String, publicMemo: String, quickReturn: Boolean|}>,
+    inParam: $ReadOnly<{|bid: BuildPaymentID, bypassBid: Boolean, bypassReview: Boolean, from: AccountID, to: String, toIsAccountID: Boolean, amount: String, asset: Asset, worthAmount: String, worthCurrency?: ?OutsideCurrencyCode, secretNote: String, publicMemo: String, quickReturn: Boolean|}>,
     outParam: SendPaymentResLocal,
   |},
   'stellar.1.local.setWalletAccountAsDefaultLocal': {|

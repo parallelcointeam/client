@@ -158,6 +158,7 @@ const sendPayment = (state: TypedState) => {
       // FIXME -- support other assets.
       bid: '', // DESKTOP-8530
       bypassBid: true, // DESKTOP-8530
+      bypassReview: true, // DESKTOP-XXX
       from: state.wallets.builtPayment.from,
       publicMemo: state.wallets.building.publicMemo.stringValue(),
       quickReturn: true,

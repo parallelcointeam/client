@@ -890,6 +890,7 @@ type SendPaymentLocalArg struct {
 	SessionID     int                  `codec:"sessionID" json:"sessionID"`
 	Bid           BuildPaymentID       `codec:"bid" json:"bid"`
 	BypassBid     bool                 `codec:"bypassBid" json:"bypassBid"`
+	BypassReview  bool                 `codec:"bypassReview" json:"bypassReview"`
 	From          AccountID            `codec:"from" json:"from"`
 	To            string               `codec:"to" json:"to"`
 	ToIsAccountID bool                 `codec:"toIsAccountID" json:"toIsAccountID"`

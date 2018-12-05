@@ -1433,6 +1433,7 @@ func (nullSecretUI) GetPassphrase(keybase1.GUIEntryArg, *keybase1.SecretEntryArg
 type testUISource struct {
 	secretUI   libkb.SecretUI
 	identifyUI libkb.IdentifyUI
+	stellarUI  stellar1.UiInterface
 }
 
 func newTestUISource() *testUISource {
@@ -1448,6 +1449,16 @@ func (t *testUISource) SecretUI(g *libkb.GlobalContext, sessionID int) libkb.Sec
 
 func (t *testUISource) IdentifyUI(g *libkb.GlobalContext, sessionID int) libkb.IdentifyUI {
 	return t.identifyUI
+}
+
+func (t *testUISource) StellarUI() stellar1.UiInterface {
+	return nullStellarUI{}
+}
+
+type nullStellarUI struct{}
+
+func (nullStellarUI) UiPaymentReview(context.Context, stellar1.UiPaymentReviewArg) error {
+	return fmt.Errorf("nullStellarUI.UiPaymentReview called")
 }
 
 func TestV2EndpointsAsV1(t *testing.T) {
