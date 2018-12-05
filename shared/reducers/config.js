@@ -208,6 +208,7 @@ export default function(state: Types.State = initialState, action: ConfigGen.Act
     case ConfigGen.copyToClipboard:
     case ConfigGen._avatarQueue:
     case ConfigGen.checkForUpdate:
+    case ConfigGen.filePickerError:
       return state
     default:
       /*::
