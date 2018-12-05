@@ -46,7 +46,7 @@ export type Props = {
   reason: ?string,
   error: ?string,
   onEditAvatar: (image?: any) => void,
-  onEditAvatarError: (error: string) => void,
+  onFilePickerError: (error: Error) => void,
   onClickAvatar: () => void,
   onClickFollowers: () => void,
   onClickFollowing: () => void,
