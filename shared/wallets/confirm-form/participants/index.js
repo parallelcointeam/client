@@ -76,7 +76,7 @@ const Participants = (props: ParticipantsProps) => {
     <Kb.Box2 direction="vertical" fullWidth={true}>
       <ParticipantsRow heading="From">
         <AccountEntry
-          contents={props.fromAccountAssets}
+          contents={props.fromAccountAssets + ' available'}
           isDefault={props.fromAccountIsDefault}
           keybaseUser={props.yourUsername}
           name={props.fromAccountName}
